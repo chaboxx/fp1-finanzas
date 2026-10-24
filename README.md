@@ -6,8 +6,9 @@ Next.js 16 + Supabase. El diseño completo está en [docs/DESIGN.md](docs/DESIGN
 ## Puesta en marcha
 
 1. Crea un proyecto gratis en [supabase.com](https://supabase.com) (región sugerida: São Paulo, la más cercana a Lima).
-2. En el proyecto, abre **SQL Editor**, pega el contenido de
-   `supabase/migrations/20261024000000_initial_schema.sql` y ejecútalo.
+2. En el proyecto, abre **SQL Editor** y ejecuta **en orden** cada archivo de
+   `supabase/migrations/` (el nombre empieza con la fecha). Cada sprint puede
+   agregar una migración nueva: ejecuta solo las que aún no hayas corrido.
 3. Copia `.env.example` a `.env.local` y completa la URL y la *publishable key*
    (**Project Settings → API Keys**).
 4. Configura Auth en Supabase:
@@ -41,9 +42,11 @@ Next.js 16 + Supabase. El diseño completo está en [docs/DESIGN.md](docs/DESIGN
 src/
   app/
     (auth)/          Login, registro y sus Server Actions (login, signup, logout)
+    (app)/           Pantallas privadas: layout con navegación, cuentas, categorías
     auth/confirm/    Destino del enlace de confirmación de email
-  components/        Componentes reutilizables (campos de formulario)
+  components/        Componentes reutilizables (formularios, tarjetas, botones)
   lib/auth.ts        requireUser(): verifica la sesión en el servidor
+  lib/money.ts       Céntimos <-> soles (parseo y formato S/)
   lib/supabase/      Clientes de Supabase (browser, server, proxy)
   proxy.ts           Refresca la sesión y redirige a /login si no hay usuario
 supabase/

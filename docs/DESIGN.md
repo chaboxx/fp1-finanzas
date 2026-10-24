@@ -57,7 +57,8 @@ Función `suggest_descriptions(query)`: autocompletado del formulario con la úl
 7. **Cuenta por defecto en la base de datos**. Si un movimiento llega sin `account_id`, un trigger usa `profiles.default_account_id`.
 8. **Fecha por defecto = hoy en Lima**. `user_today()` usa la zona horaria del perfil, no la del servidor (UTC).
 9. **Aislamiento por usuario en tres capas**: RLS (`user_id = auth.uid()`), `user_id` con default `auth.uid()`, y FKs compuestas `(x_id, user_id)` que impiden referenciar filas de otro usuario.
-10. **Recurrentes idempotentes**. Índice único `(recurring_rule_id, occurred_on)`: ejecutar el generador dos veces no duplica el sueldo.
+10. **Cuenta por defecto protegida** (migración 2): la primera cuenta creada pasa a ser la de defecto, no se puede deshabilitar y solo una cuenta activa puede serlo.
+11. **Recurrentes idempotentes**. Índice único `(recurring_rule_id, occurred_on)`: ejecutar el generador dos veces no duplica el sueldo.
 
 ## Plan por sprints
 
@@ -65,7 +66,7 @@ Función `suggest_descriptions(query)`: autocompletado del formulario con la úl
 |---|---|---|
 | 0 | Proyecto, esquema, RLS, pruebas del esquema | ✅ |
 | 1 | Registro, login, logout con Supabase Auth | ✅ |
-| 2 | Cuentas, categorías, cuenta por defecto | |
+| 2 | Cuentas, categorías, cuenta por defecto | ✅ |
 | 3 | Formulario de movimientos con autocompletado | |
 | 4 | Dashboard: tarjetas, filtros, gráficos de líneas y de torta | |
 | 5 | Recurrentes (generador + cron) y presupuestos | |

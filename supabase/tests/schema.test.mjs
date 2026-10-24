@@ -55,13 +55,17 @@ const prof = await expectOk("perfil auto-creado", A, `select * from profiles`);
 console.log("   perfiles visibles para A:", prof.rows.length, prof.rows[0]?.timezone, prof.rows[0]?.currency);
 
 // Setup de A
+await expectError("gasto sin cuenta ni cuenta por defecto", A, `
+  insert into transactions (type, amount_cents, category_id, description) values ('expense', 1500, 'cccccccc-0000-0000-0000-000000000001', 'Almuerzo')`, "cuenta por defecto");
 await expectOk("crear cuentas", A, `
   insert into accounts (id, name, type, initial_balance_cents) values
    ('aaaaaaaa-0000-0000-0000-000000000001','Efectivo','cash', 10000),
    ('aaaaaaaa-0000-0000-0000-000000000002','BCP Débito','debit', 500000),
    ('aaaaaaaa-0000-0000-0000-000000000003','Visa','credit', 0)`);
-await expectError("gasto sin cuenta ni cuenta por defecto", A, `
-  insert into transactions (type, amount_cents, category_id, description) values ('expense', 1500, 'cccccccc-0000-0000-0000-000000000001', 'Almuerzo')`, "cuenta por defecto");
+const firstDefault = await as(A, `select default_account_id from profiles`);
+console.log(firstDefault.rows[0].default_account_id === "aaaaaaaa-0000-0000-0000-000000000001"
+  ? "PASS la primera cuenta pasa a ser la cuenta por defecto"
+  : (failures++, "FAIL cuenta por defecto inicial: " + firstDefault.rows[0].default_account_id));
 await expectOk("crear categorías", A, `
   insert into categories (id, name, kind) values
    ('cccccccc-0000-0000-0000-000000000001','Comida','expense'),
@@ -72,6 +76,14 @@ await expectError("nombre de categoría duplicado (sin importar mayúsculas)", A
   `insert into categories (name, kind) values ('comida','expense')`, "duplicate");
 await expectOk("configurar cuenta por defecto", A,
   `update profiles set default_account_id = 'aaaaaaaa-0000-0000-0000-000000000002'`);
+await expectError("deshabilitar la cuenta por defecto", A,
+  `update accounts set is_active = false where id = 'aaaaaaaa-0000-0000-0000-000000000002'`, "cuenta por defecto");
+await expectOk("deshabilitar otra cuenta", A,
+  `update accounts set is_active = false where id = 'aaaaaaaa-0000-0000-0000-000000000001'`);
+await expectError("elegir una cuenta deshabilitada como defecto", A,
+  `update profiles set default_account_id = 'aaaaaaaa-0000-0000-0000-000000000001'`, "debe estar activa");
+await expectOk("reactivar cuenta", A,
+  `update accounts set is_active = true where id = 'aaaaaaaa-0000-0000-0000-000000000001'`);
 
 await expectOk("gasto sin cuenta ni fecha => cuenta por defecto + hoy", A, `
   insert into transactions (type, amount_cents, category_id, description)
