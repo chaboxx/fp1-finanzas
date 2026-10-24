@@ -28,6 +28,7 @@ Antes de cambiar algo, lee:
 | `npm run lint` | Siempre antes de terminar. |
 | `npm test` | Pruebas unitarias (`src/**/*.test.ts`, con `tsx --test`). |
 | `npm run test:db` | Aplica **todas** las migraciones en un Postgres en memoria (PGlite) y prueba reglas, saldos y RLS. Obligatorio si tocas `supabase/`. |
+| `npm run test:contable` | Pruebas contables ([docs/PRUEBAS_CONTABLES.md](docs/PRUEBAS_CONTABLES.md)): ejecuta las Server Actions reales contra PGlite y compara con un Libro independiente. Obligatorio si tocas dinero, movimientos, recurrentes, inversiones, presupuestos o métricas. Si agregas una Server Action o un filtro de supabase-js nuevo, extiende `tests/contable/fake-supabase.ts`. |
 | `npm run build` | Valida el prerender de Cache Components. Sin Supabase real, usa variables falsas: `NEXT_PUBLIC_SUPABASE_URL=https://example.supabase.co NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=x npm run build` |
 
 El log del servidor de desarrollo queda en `.next/dev/logs/next-development.log`.
@@ -52,6 +53,7 @@ src/
     auth.ts                   requireUser()
     money.ts dates.ts         Céntimos <-> soles; fechas en hora de Lima
     dashboard.ts              Cálculos puros del dashboard (+ dashboard.test.ts)
+    metrics.ts                Métricas de avance: proyección, indicadores, comparaciones, rachas (+ metrics.test.ts)
     colors.ts                 Paleta de categorías validada para daltonismo
     action-state.ts           Tipo de respuesta de Server Actions + traducción de errores de BD
     data.ts types.ts          Consultas compartidas y tipos de dominio
@@ -99,7 +101,7 @@ supabase/
 - Formularios con campos controlados (p. ej. el de movimientos) usan `onSubmit` + `startTransition(() => formAction(fd))` en vez de `<form action>`, para que React no los resetee solo.
 
 ### Gráficos y color
-- Lee la skill `dataviz` antes de crear o cambiar un gráfico.
+- Si la skill `dataviz` está disponible, léela antes de cambiar gráficos. En esta instalación no se encontró; las reglas de esta sección y la revisión en navegador siguen siendo obligatorias.
 - Los colores de categorías salen de `CATEGORY_PALETTE` (`lib/colors.ts`), validada para daltonismo. No agregues colores sin validarlos.
 - Máximo 8 colores por gráfico: el resto se agrupa en "Otras" (`topWithOther`). Resuelve los colores **una sola vez** con `withDistinctColors` y reutilízalos en todos los gráficos de la pantalla.
 - En modo oscuro usa `categoryColor(hex, dark)`. Todo gráfico va acompañado de una tabla o lista con los valores.
@@ -108,21 +110,29 @@ supabase/
 ### Estilo de código
 - TypeScript estricto; alias `@/` → `src/`.
 - Comentarios en español, breves, que expliquen el **porqué**.
-- Tailwind con clases utilitarias; mobile-first; soporta `dark:` (sigue `prefers-color-scheme`).
+- Tailwind con clases utilitarias; mobile-first. Tema claro por defecto; `dark:` usa la clase del documento configurada en Perfil. Solo la opción Sistema sigue `prefers-color-scheme`. Los gráficos usan `useIsDark()` de `lib/theme.ts`.
 - Componentes de servidor por defecto; `"use client"` solo cuando hay estado o eventos.
 
 ## Decisiones del usuario (no revertir sin preguntar)
 
 - Registro abierto, sin invitaciones: solo el dueño conoce la URL.
 - Auth estándar de Supabase con email; la sesión la maneja Supabase.
-- Sin categorías por defecto: el usuario crea las suyas.
-- Presupuesto = **monto fijo** por categoría y por mes; cada mes puede variar; se compara contra el ingreso real del mes.
+- Categorías típicas por defecto y categorías propias, editables y desactivables por usuario (migración 20261027000000).
+- Presupuesto = **total previsto mensual definido por el usuario**, distribuido por porcentajes entre categorías de gastos e inversión. Comparar ejecución e ingreso real sin cambiar automáticamente la base al cobrar. Usa budget_plans y budget_allocations; los presupuestos fijos anteriores se conservan en budgets.
 - Los aportes a inversiones **cuentan como egreso** del mes y contra el presupuesto, pero se muestran separados del gasto.
+- Inversiones y Presupuestos son pestañas propias y obligatorias del primer MVP. Categorías de inversión simples, sin subcategorías.
+- Solo soles; conservar email/contraseña y la sesión estándar actual de Supabase, sin imponer 24 horas.
+- Filtros de informes con Desde/Hasta visibles y accesos rápidos; sin selector Período. Casillas Todas para limpiar cada selección.
+- Limpiar filtros es un enlace condicional para cuentas/categorías/tipo/búsqueda: conserva siempre las fechas o el acceso rápido elegido. Arrastrar en el gráfico aplica un rango global y actualiza Desde/Hasta. Sin barra inferior Brush ni controles de zoom local: se muestra el rango completo.
+- Los campos de fecha/mes usan DateInput para abrir el calendario al pulsar cualquier parte del campo. Campos obligatorios con RequiredMark y semántica required; opcionales sin asterisco ni etiquetas de autorrelleno. El acceso rápido global a movimientos solo muestra el icono +, conservando su nombre accesible.
+- Presupuestos cambia de mes al elegirlo, mediante navegación de cliente y sin botón Ver mes.
+- Altas y transferencias mediante FormModal; cerrar tras éxito. Perfil tiene la preferencia de tema claro/oscuro/sistema por usuario.
+- Metas de ahorro fuera de este MVP; documentadas para el MVP siguiente. El alcance y los criterios vigentes están en [docs/PLAN_MEJORA.md](docs/PLAN_MEJORA.md).
 - Renombrar una categoría también cambia el nombre en el historial.
 
 ## Antes de terminar una tarea
 
-1. `npm run lint`, `npm test` y, si tocaste SQL, `npm run test:db`.
+1. `npm run lint`, `npm test`, `npm run test:contable` y, si tocaste SQL, `npm run test:db`.
 2. `npm run build` con las variables falsas: detecta errores de Suspense y prerender que el lint no ve.
 3. Si el cambio se ve en pantalla, revísalo en el navegador. Las pantallas privadas requieren sesión: para revisar gráficos sin sesión, crea una página temporal bajo `/auth/...` (ruta pública) con datos de ejemplo y bórrala al terminar.
 4. Si agregaste una migración, avisa al usuario que debe ejecutarla en el SQL Editor de Supabase.

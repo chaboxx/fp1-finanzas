@@ -17,7 +17,8 @@ export function isMonth(value: unknown): value is string {
 // "2026-10" => { from: "2026-10-01", to: "2026-11-01" } (to es exclusivo)
 export function monthRange(month: string) {
   const [y, m] = month.split("-").map(Number);
-  const next = m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, "0")}`;
+  const next =
+    m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, "0")}`;
   return { from: `${month}-01`, to: `${next}-01` };
 }
 
@@ -33,12 +34,21 @@ function toDate(isoDay: string) {
 }
 
 export function formatMonth(month: string): string {
-  const label = toDate(`${month}-01`).toLocaleDateString("es-PE", { month: "long", year: "numeric", timeZone: "UTC" });
+  const label = toDate(`${month}-01`).toLocaleDateString("es-PE", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
   return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
 export function formatDayHeading(isoDay: string): string {
   if (isoDay === todayISO()) return "Hoy";
-  const label = toDate(isoDay).toLocaleDateString("es-PE", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
+  const label = toDate(isoDay).toLocaleDateString("es-PE", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    timeZone: "UTC",
+  });
   return label.charAt(0).toUpperCase() + label.slice(1);
 }

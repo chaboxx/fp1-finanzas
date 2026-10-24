@@ -1,131 +1,69 @@
 # Finanzas
 
-App web de finanzas personales para usar desde el celular o la PC. Registras gastos, ingresos y
-transferencias entre tus cuentas, y ves en qué se va tu dinero con un dashboard filtrable.
-Pensada para 1–2 personas en Perú: montos en soles (S/) y fechas en hora de Lima.
+Finanzas personales en soles, para dos usuarios con datos separados. Next.js 16, React, Supabase/Postgres, Tailwind y Recharts. Fechas en hora de Lima.
 
-**Stack:** Next.js 16 · React 19 · Supabase (Postgres + Auth) · Tailwind CSS 4 · Recharts · zod
+[Abrir la aplicación](https://finanzas-app-eight-lyart.vercel.app) · [Repositorio](https://github.com/chaboxx/fp1-finanzas)
 
-| Documento | Para qué |
+## Funciones
+
+| Pantalla | Qué permite |
 |---|---|
-| [docs/DESIGN.md](docs/DESIGN.md) | Arquitectura y por qué se diseñó así |
-| [docs/DATABASE.md](docs/DATABASE.md) | Referencia del esquema: tablas, reglas, vistas, RLS |
-| [docs/ROADMAP.md](docs/ROADMAP.md) | Qué está hecho, qué falta, deuda técnica |
-| [AGENTS.md](AGENTS.md) | Convenciones para quien escriba código (personas o agentes de IA) |
+| Resumen | Período, mes, año y fechas; cuentas/categorías múltiples; gráficos por día, semana o mes; comparación, acumulado, selección de rango con Inicio/Fin, leyenda y detalle interactivos; alertas de presupuesto. |
+| Movimientos | Gastos, ingresos y transferencias; autocompletado, búsqueda y filtros; edición y eliminación con confirmación; historial de inversiones enlazado a su propia pantalla. |
+| Inversiones | Categorías simples y posiciones; aportes, rescates, valorizaciones y saldos iniciales; gráficos e historial. Un aporte descuenta una sola vez y consume presupuesto de inversión. |
+| Presupuestos | Total previsto por mes, distribución por porcentajes, avance/exceso, dinero sin asignar y copia del mes anterior. El ingreso real no cambia la base prevista. |
+| Cuentas | Efectivo, débito, crédito y ahorro; cuenta predeterminada; dinero, deuda y saldos a favor; transferencias e historial. |
+| Categorías | Predeterminadas por usuario, personalizadas, nombre, color y desactivación/reactivación sin perder historial. |
+| Recurrentes | Desde Movimientos: sueldo, renta, suscripciones y transferencias; calendario anclado, pausa, errores recuperables y generación sin duplicados. |
+| Acceso | Registro, email/contraseña y sesión estándar de Supabase. |
+| Perfil | Nombre y tema claro, oscuro o del sistema, con vista previa y preferencia por usuario. Claro por defecto. |
 
-## Qué puedes hacer hoy
+Metas de ahorro, brokers automáticos, USD, subcategorías y PWA quedan para otro MVP.
 
-| Pantalla | Funciones |
+## Activar una instalación existente
+
+Cada instalación debe tener las migraciones aplicadas en orden. Durante el despliegue se comprobó que la base actual ya tiene budget_plans, profiles.theme y financial_targets; no se modificaron sus datos.
+
+Para actualizar otra instalación, sigue [ACTIVAR_MVP.md](docs/ACTIVAR_MVP.md): respaldo y reporte previo de solo lectura. Si solo tiene Inversiones/Presupuestos, aplica [20261028000000_profile_theme.sql](supabase/migrations/20261028000000_profile_theme.sql) y [20261029000000_financial_targets.sql](supabase/migrations/20261029000000_financial_targets.sql) (pestaña Métricas). Para una base anterior, aplica primero la migración 20261027000000. Los movimientos y presupuestos fijos se conservan; no se reclasifican inversiones por el nombre.
+
+## Instalar desde cero
+
+1. Node.js 22+ y un proyecto de Supabase.
+2. Ejecutar en orden todos los archivos de supabase/migrations en el SQL Editor.
+3. Copiar .env.example a .env.local y completar la URL y publishable key de Supabase. Para uso local no necesitas las variables opcionales de servidor.
+4. En Supabase Auth, configurar Site URL y las URL de redirección. Para confirmación por correo, usar el destino /auth/confirm con token_hash y type=email.
+5. Ejecutar npm install y npm run dev; abrir http://localhost:3000.
+6. Crear usuario y una cuenta con saldo inicial. La primera queda predeterminada y las categorías típicas se crean con el registro.
+
+## Comandos
+
+| Comando | Uso |
 |---|---|
-| **Resumen** (`/`) | Tarjetas de ingresos, gastos, inversión y balance, comparadas con el período anterior. Gráfico de egresos por día o por mes (total o por categoría) y dona por categoría con tabla. Filtros por mes, últimos 3/6 meses, año, rango de fechas, categoría y cuenta. |
-| **Movimientos** (`/movimientos`) | Lista mensual agrupada por día, con totales. Registrar gasto, ingreso o transferencia con autocompletado; la cuenta y la fecha son opcionales. Editar y borrar. Botón flotante **+** en el celular. |
-| **Cuentas** (`/cuentas`) | Efectivo, débito, tarjeta de crédito y ahorro. Saldo por cuenta, saldo total, disponible y deuda en tarjetas. Cuenta por defecto. Deshabilitar sin perder el historial. |
-| **Categorías** (`/categorias`) | Gastos, ingresos e inversiones. Crear, renombrar, cambiar color, deshabilitar. No se borran. |
-| **Acceso** | Registro e inicio de sesión con email y contraseña, confirmación por correo, cierre de sesión. |
+| npm run dev | Desarrollo local. |
+| npm run lint | Revisión estática. |
+| npm test | Cálculos, fechas, dinero, presupuestos, calendarios y paginación. |
+| npm run test:db | Todas las migraciones y reglas financieras/RLS en Postgres en memoria. |
+| npm run test:contable | Pruebas contables: formularios reales, ~2.5 años simulados, recurrentes, métricas y auditoría. Ver [PRUEBAS_CONTABLES.md](docs/PRUEBAS_CONTABLES.md). |
+| npm run test:ui | Interacciones, capturas de escritorio/móvil y modo oscuro con datos ficticios; elimina la página temporal al terminar. |
+| npm run build | Compilación de producción, incluyendo tipos y prerender. |
+| npm run types:db | Regenerar tipos TypeScript a partir de las migraciones. |
 
-Lo que falta (presupuestos, recurrentes, metas de ahorro, inversiones, PWA, deploy) está en
-[docs/ROADMAP.md](docs/ROADMAP.md).
+Para test:ui, instalar el navegador una vez con npx playwright install chromium. El flujo de CI ejecuta estas comprobaciones con variables públicas falsas; no necesita credenciales de la cuenta real.
 
-### Cómo se usa (conceptos clave)
+## Reglas del dinero
 
-- **Pagar la tarjeta de crédito es una transferencia**, no un gasto. El gasto ya se registró cuando compraste con la tarjeta; si lo registraras de nuevo al pagar, contarías el gasto dos veces.
-- **Si no eliges cuenta**, el movimiento va a tu cuenta por defecto. **Si no pones fecha**, se usa hoy.
-- **Una categoría deshabilitada** desaparece del formulario, pero sigue en el historial y en los gráficos.
-- **El saldo de cada cuenta se calcula**: saldo inicial + ingresos − gastos ± transferencias − aportes a inversiones.
+- Gasto y aporte descuentan saldo una sola vez; solo el aporte aparece como inversión.
+- Rescate devuelve dinero y se muestra separado de ingresos ordinarios.
+- Transferir o pagar una tarjeta no es un gasto adicional.
+- Actualizar una valorización o incorporar un saldo inicial de inversión no descuenta dinero de una cuenta.
+- Cuentas y reportes ejecutados excluyen movimientos futuros, que se identifican en el historial.
+- Categorías y cuentas deshabilitadas conservan su historial. Los reportes pueden consultarlas.
 
-## Puesta en marcha (local)
+## Documentación
 
-Requisitos: Node.js 22+ y una cuenta gratis en [supabase.com](https://supabase.com).
-
-1. **Crea el proyecto en Supabase** (región sugerida: São Paulo, la más cercana a Lima).
-2. **Crea la base de datos**: en **SQL Editor**, ejecuta **en orden** cada archivo de
-   [`supabase/migrations/`](supabase/migrations) (el nombre empieza con la fecha). Cuando llegue
-   una migración nueva, ejecuta solo esa.
-
-   | Migración | Qué hace |
-   |---|---|
-   | `20261024000000_initial_schema.sql` | Esquema completo, reglas, RLS, vistas |
-   | `20261025000000_default_account_rules.sql` | Reglas de la cuenta por defecto |
-   | `20261026000000_category_palette.sql` | Cambia colores de categorías a la paleta accesible |
-
-3. **Variables de entorno**: copia `.env.example` a `.env.local` y completa los valores con lo que
-   está en **Project Settings → API Keys**.
-
-   | Variable | Valor |
-   |---|---|
-   | `NEXT_PUBLIC_SUPABASE_URL` | `https://<tu-proyecto>.supabase.co` |
-   | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | La *publishable key* (`sb_publishable_...`) |
-
-   No hace falta la contraseña de la base de datos ni la *secret key*. Ninguna variable
-   `NEXT_PUBLIC_` puede ser secreta: llega al navegador.
-4. **Configura Auth** en Supabase:
-   - **Authentication → URL Configuration**: en *Site URL* pon `http://localhost:3000` (después,
-     la URL de Vercel) y agrega `http://localhost:3000/**` en *Redirect URLs*.
-   - **Authentication → Emails → Confirm signup**: cambia el enlace por
-     `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email`. Así funciona aunque
-     abras el correo en otro dispositivo.
-   - *Opcional*: en **Sign In / Providers → Email**, desactiva *Confirm email* para entrar sin confirmar.
-5. **Levanta la app**:
-
-   ```bash
-   npm install
-   npm run dev
-   ```
-
-   Abre http://localhost:3000, crea tu cuenta y luego crea tus cuentas y categorías.
-   Para probarla desde el celular en la misma red Wi-Fi, usa la dirección *Network* que muestra
-   `npm run dev` (por ejemplo, `http://192.168.x.x:3000`).
-
-## Despliegue en Vercel (pendiente)
-
-1. Sube el repositorio a GitHub (hoy no tiene remoto) con la rama final unida a `master`.
-2. En [vercel.com](https://vercel.com), importa el repositorio. Vercel detecta Next.js solo.
-3. Agrega las dos variables de entorno de arriba en **Settings → Environment Variables**.
-4. En Supabase, cambia la *Site URL* a la URL de Vercel y agrégala en *Redirect URLs* (`https://tu-app.vercel.app/**`).
-5. Cuando ya hayas creado tus usuarios, desactiva **Allow new users to sign up** en Supabase
-   (**Authentication → Sign In / Providers**). Así nadie más puede registrarse aunque encuentre la URL.
-
-## Scripts
-
-| Comando | Qué hace |
-|---|---|
-| `npm run dev` | Servidor de desarrollo en http://localhost:3000 |
-| `npm run build` / `npm start` | Build de producción y servidor de producción |
-| `npm run lint` | ESLint |
-| `npm test` | Pruebas unitarias de cálculos: dashboard, montos, colores |
-| `npm run test:db` | Aplica las migraciones en un Postgres en memoria (PGlite) y prueba reglas, saldos y aislamiento entre usuarios |
-
-## Estructura
-
-```
-src/
-  proxy.ts               Refresca la sesión; sin sesión redirige a /login
-  app/
-    (auth)/              Login, registro y sus Server Actions
-    auth/confirm/        Destino del enlace de confirmación de email
-    (app)/               Pantallas privadas: dashboard, movimientos, cuentas, categorías
-    (app)/_dashboard/    Filtros y gráficos del dashboard
-  components/            UI compartida (campos de formulario, tarjetas, botones)
-  lib/
-    supabase/            Clientes de Supabase (servidor, navegador, proxy)
-    auth.ts              requireUser(): verifica la sesión en el servidor
-    money.ts             Céntimos <-> soles
-    dates.ts             Fechas en hora de Lima
-    dashboard.ts         Cálculos del dashboard (funciones puras, con pruebas)
-    colors.ts            Paleta de categorías validada para daltonismo
-supabase/
-  migrations/            Esquema SQL versionado
-  tests/                 Pruebas del esquema con PGlite
-docs/                    Diseño, base de datos, roadmap
-```
-
-## Ramas
-
-Cada sprint vive en su rama, y cada una parte de la anterior:
-`sprint-0-schema` → `sprint-1-auth` → `sprint-2-cuentas-categorias` → `sprint-3-movimientos` → `sprint-4-dashboard`.
-`master` solo tiene el esqueleto inicial. Para unir todo:
-
-```bash
-git checkout master
-git merge --ff-only sprint-4-dashboard
-```
+- [Plan y criterios de aceptación](docs/PLAN_MEJORA.md)
+- [Estado y pendientes de activación](docs/ROADMAP.md)
+- [Activación y validación real](docs/ACTIVAR_MVP.md)
+- [Arquitectura](docs/DESIGN.md)
+- [Modelo de datos](docs/DATABASE.md)
+- [Convenciones para agentes](AGENTS.md)

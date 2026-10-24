@@ -1,77 +1,105 @@
-import type { Metadata } from "next";
 import { Suspense } from "react";
-import { Card, PageHeader } from "@/components/ui";
+import { PageHeader, LoadingPanel } from "@/components/ui";
+import { StatCard } from "@/components/stat-card";
 import { requireUser } from "@/lib/auth";
-import { formatCents } from "@/lib/money";
+import { fetchAll, generateDue } from "@/lib/finance-data";
 import type { AccountWithBalance } from "@/lib/types";
-import { AccountList, CreateAccountForm } from "./accounts-ui";
-
-export const metadata: Metadata = { title: "Cuentas · Finanzas" };
-
+import { AccountsWorkspace } from "./accounts-ui";
 export default function AccountsPage() {
   return (
     <>
-      <PageHeader title="Cuentas" description="Tus billeteras: efectivo, débito, tarjetas de crédito y ahorro." />
-      <Suspense fallback={<div className="h-64 animate-pulse rounded-2xl bg-zinc-200 dark:bg-zinc-800" />}>
+      <PageHeader
+        title="Cada cuenta, en orden"
+        description="Tu dinero disponible, tus tarjetas y el lugar desde el que pagas."
+      />
+      <Suspense fallback={<LoadingPanel />}>
         <Accounts />
       </Suspense>
     </>
   );
 }
-
 async function Accounts() {
   const { supabase, userId } = await requireUser();
-  const [accountsRes, balancesRes, profileRes] = await Promise.all([
-    supabase.from("accounts").select("id, name, type, is_active, initial_balance_cents").order("created_at"),
-    supabase.from("account_balances").select("account_id, balance_cents"),
-    supabase.from("profiles").select("default_account_id").eq("id", userId).single(),
+  await generateDue(supabase);
+  const [rows, balances, profile] = await Promise.all([
+    fetchAll((a, b) =>
+      supabase
+        .from("accounts")
+        .select("*")
+        .order("created_at")
+        .order("id")
+        .range(a, b),
+    ),
+    fetchAll((a, b) =>
+      supabase
+        .from("account_balances")
+        .select("*")
+        .order("account_id")
+        .range(a, b),
+    ),
+    supabase
+      .from("profiles")
+      .select("default_account_id")
+      .eq("id", userId)
+      .single(),
   ]);
-  if (accountsRes.error || balancesRes.error) {
-    throw new Error("No se pudieron cargar las cuentas");
-  }
-
-  const balanceById = new Map(balancesRes.data.map((b) => [b.account_id, Number(b.balance_cents)]));
-  const accounts: AccountWithBalance[] = accountsRes.data.map((a) => ({
+  if (profile.error)
+    throw new Error("No se pudo cargar la cuenta predeterminada");
+  const balanceMap = new Map(
+    balances.map((b) => [b.account_id, Number(b.balance_cents)]),
+  );
+  const accounts: AccountWithBalance[] = rows.map((a) => ({
     ...a,
     initial_balance_cents: Number(a.initial_balance_cents),
-    balance_cents: balanceById.get(a.id) ?? Number(a.initial_balance_cents),
+    balance_cents: balanceMap.get(a.id) ?? Number(a.initial_balance_cents),
   }));
-  const defaultAccountId = profileRes.data?.default_account_id ?? null;
-
-  // Disponible = lo que tienes; deuda = saldo negativo de tarjetas de crédito.
-  const available = accounts.filter((a) => a.type !== "credit").reduce((s, a) => s + a.balance_cents, 0);
-  const debt = accounts.filter((a) => a.type === "credit").reduce((s, a) => s + a.balance_cents, 0);
-
+  const available = accounts
+    .filter((a) => a.type !== "credit")
+    .reduce((s, a) => s + a.balance_cents, 0);
+  const debt = accounts
+    .filter((a) => a.type === "credit")
+    .reduce((s, a) => s + Math.max(0, -a.balance_cents), 0);
+  const favor = accounts
+    .filter((a) => a.type === "credit")
+    .reduce((s, a) => s + Math.max(0, a.balance_cents), 0);
   return (
-    <div className="flex flex-col gap-6">
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <SummaryCard label="Saldo total" value={available + debt} emphasis />
-        <SummaryCard label="Disponible" value={available} />
-        <SummaryCard label="Deuda en tarjetas" value={Math.abs(debt)} />
+    <>
+      <div className="mb-5 grid grid-cols-2 gap-3 xl:grid-cols-4">
+        <StatCard
+          label="Saldo neto en cuentas"
+          value={available + favor - debt}
+          icon="wallet"
+          emphasis
+        />
+        <StatCard
+          tone="income"
+          label="Dinero en cuentas"
+          value={available}
+          icon="wallet"
+          footnote="Efectivo, débito y ahorro"
+        />
+        <StatCard
+          tone="expense"
+          label="Deuda en tarjetas"
+          value={debt}
+          icon="list"
+          footnote="Las deudas no se ocultan con saldos a favor"
+        />
+        <StatCard
+          tone="income"
+          label="A favor en tarjetas"
+          value={favor}
+          icon="arrow"
+        />
       </div>
-
-      {accounts.length === 0 ? (
-        <Card>
-          <p className="text-sm text-zinc-500">
-            Aún no tienes cuentas. Crea la primera: será tu cuenta por defecto para los gastos rápidos.
-          </p>
-        </Card>
-      ) : (
-        <AccountList accounts={accounts} defaultAccountId={defaultAccountId} />
-      )}
-
-      <CreateAccountForm />
-    </div>
-  );
-}
-
-function SummaryCard({ label, value, emphasis = false }: { label: string; value: number; emphasis?: boolean }) {
-  return (
-    <Card>
-      <p className="text-sm text-zinc-500">{label}</p>
-      <p className={`mt-1 font-semibold tabular-nums ${emphasis ? "text-2xl" : "text-xl"} ${value < 0 ? "text-red-600" : ""}`}>
-        {formatCents(value)}
+      <p className="mb-6 text-xs text-slate-400">
+        Los totales incluyen todas tus cuentas, también las deshabilitadas con
+        saldo. El valor de las inversiones se consulta en su propia pestaña.
       </p>
-    </Card>
+      <AccountsWorkspace
+        accounts={accounts}
+        defaultAccountId={profile.data.default_account_id}
+      />
+    </>
   );
 }

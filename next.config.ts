@@ -1,17 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  distDir: process.env.FINANZAS_REVIEW === "1" ? ".next-review" : ".next",
   cacheComponents: true,
   partialPrefetching: true,
-  turbopack: {
-    rules: {
-      "*.css": {
-        loaders: ["@tailwindcss/turbopack"],
-        as: "*.css",
-      },
-    },
-  },
 };
 
 export default nextConfig;

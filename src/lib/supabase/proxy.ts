@@ -52,7 +52,11 @@ export async function updateSession(request: NextRequest) {
 
 // Un redirect es una respuesta nueva: hay que copiarle las cookies de sesión
 // que Supabase pudo haber refrescado, o el usuario perdería la sesión.
-function redirectPreservingCookies(request: NextRequest, response: NextResponse, pathname: string) {
+function redirectPreservingCookies(
+  request: NextRequest,
+  response: NextResponse,
+  pathname: string,
+) {
   const url = request.nextUrl.clone();
   url.pathname = pathname;
   url.search = "";

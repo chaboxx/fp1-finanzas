@@ -24,6 +24,9 @@ Las pruebas de todo lo que se describe aquí están en
 | `20261024000000_initial_schema.sql` | Tipos, tablas, triggers de negocio, RLS, vistas, autocompletado |
 | `20261025000000_default_account_rules.sql` | Primera cuenta = por defecto; la cuenta por defecto no se deshabilita y debe estar activa |
 | `20261026000000_category_palette.sql` | Migración de datos: colores de categorías a la paleta accesible |
+| `20261027000000_finance_mvp.sql` | Presupuestos porcentuales, operaciones atómicas de inversión, predeterminadas, generador recurrente y saldos ejecutados |
+| `20261028000000_profile_theme.sql` | Tema por usuario y consolidación de reglas para instalaciones del MVP anterior |
+| `20261029000000_financial_targets.sql` | Metas financieras por mes (`financial_targets`) y `accounts.in_emergency_fund` para la pestaña Métricas |
 
 Las migraciones **nunca se editan** una vez aplicadas: los cambios van en una migración nueva.
 Hoy se aplican a mano en el SQL Editor de Supabase (ver [ROADMAP](ROADMAP.md) para automatizarlo).
@@ -94,7 +97,7 @@ Se crea sola con el trigger `on_auth_user_created` cuando alguien se registra.
 `(user_id, lower(description))` y único parcial `(recurring_rule_id, occurred_on)` (idempotencia de recurrentes).
 
 ### `investments` y `investment_valuations`
-- `investments`: una posición (ej. "Fondo Mutuo BCP"), con `category_id` de tipo `investment`, `platform` opcional e `is_active`.
+- `investments`: una posición (ej. "Fondo Mutuo BCP"), con `category_id` de tipo `investment`, `platform` opcional e `is_active`. Su pantalla pertenece al primer MVP revisado, pero todavía no está implementada (ver [Plan de mejora](PLAN_MEJORA.md)).
 - `investment_valuations`: cuánto vale una posición en una fecha (`value_cents >= 0`, único por (inversión, `valued_on`)). Junto con los aportes permite calcular la rentabilidad.
 
 ### `recurring_rules`
@@ -108,7 +111,7 @@ categoría, mes). Solo categorías `expense` o `investment` (trigger).
 
 ### `savings_goals` y `goal_contributions`
 Metas como "sobres virtuales": `target_cents`, `target_date` opcional. Los aportes (`amount_cents <> 0`,
-negativo = retiro) **no mueven dinero entre cuentas**. Sin UI aún (Sprint 6).
+negativo = retiro) **no mueven dinero entre cuentas**. Sin UI; fuera del MVP actual por decisión del usuario y documentadas para el siguiente en [Plan de mejora](PLAN_MEJORA.md).
 
 ## Reglas de negocio (triggers)
 
@@ -167,3 +170,64 @@ saldos, presupuestos, categorías deshabilitadas, cuenta por defecto, idempotenc
 autocompletado y aislamiento entre usuarios.
 
 Límite: no prueba PostgREST ni el Auth real de Supabase. Esas capas se validan usando la app.
+
+## Ampliación del MVP (migración 20261027000000)
+
+Esta sección actualiza el esquema inicial descrito arriba:
+
+- categories.seed_key: clave estable y única por usuario. El registro crea categorías típicas editables. Repetir la inicialización conserva renombrados y desactivaciones. seed_categories_for_user es una función interna sin permiso público.
+- transactions.request_id: único por usuario para evitar duplicados al reintentar envíos. account_id sigue siendo NOT NULL en filas guardadas; sus tipos de escritura permiten null porque el trigger lo completa.
+- investments.initial_capital_cents, opened_on y request_id: capital previo conocido o desconocido, fecha de apertura y protección contra duplicación de la posición inicial.
+- recurring_rules.occurrence_index y last_error: índice del calendario original y motivo recuperable del último error.
+- budget_plans: cabecera con id, user_id, month (día 1), total_cents positivo y updated_at; única por usuario/mes.
+- budget_allocations: dueño, plan_id, category_id y percentage_bps entre 1 y 10.000; única por plan/categoría. FKs compuestas y RLS por usuario.
+- El trigger de asignaciones bloquea la cabecera para serializar modificaciones y rechaza una suma mayor de 10.000 puntos básicos. Solo admite categorías de gasto o inversión.
+- budget_plan_progress calcula asignaciones truncando a céntimos y muestra ejecución real hasta hoy. El residuo queda sin asignar. Los presupuestos fijos y budget_progress anteriores se conservan íntegros.
+- account_balances y monthly_summary ahora excluyen movimientos futuros del ejecutado.
+
+Operaciones:
+
+| Función | Regla |
+|---|---|
+| save_budget_plan(month, total, allocations) | Cabecera y distribución se guardan atómicamente; preserva categorías ya asignadas aunque se deshabiliten y no modifica ingresos ni presupuestos fijos previos. |
+| save_investment_entry(...) | Aporte/rescate en transactions, valorización sin movimiento y apertura con capital previo opcional. Creación de posición y movimiento en una transacción; reintentos no duplican. |
+| recurrence_date(start, frequency, index) | Cada fecha se calcula desde el inicio original, incluyendo días 29–31 y años bisiestos. |
+| generate_recurring_transactions(until, user) | Solo el dueño o service_role puede generar; no registra futuro, bloquea reglas, respeta el índice único y guarda errores recuperables. service_role envía el dueño explícito de cada regla. |
+| suggest_descriptions(query, limit, type) | Filtra por tipo antes del límite y escapa % y _ como caracteres literales. |
+
+Las inversiones y sus categorías deshabilitadas no aceptan aportes nuevos. Los registros anteriores pueden editarse conservando sus referencias. La generación contra catálogos deshabilitados falla de forma recuperable; actualizar last_error no reactiva la regla ni elimina registros.
+
+Tipos de cliente en src/lib/database.types.ts, generados con npm run types:db desde todas las migraciones. Las consultas de informes recuperan páginas hasta una respuesta vacía para no depender del límite configurado de PostgREST.
+
+Activación remota y revisión de correspondencias históricas: [ACTIVAR_MVP.md](ACTIVAR_MVP.md).
+
+## Perfil y tema
+
+profiles.theme es texto NOT NULL con valor inicial light y CHECK para light, dark o system. Las políticas del perfil existentes permiten leer y editar únicamente el propio perfil. El formulario actualiza display_name y theme; no modifica el acceso ni las sesiones.
+
+La migración 20261028000000 también consolida los procedimientos de presupuesto y recurrentes y las vistas ejecutadas para instalaciones que aplicaron una revisión previa del MVP. No altera movimientos ni recalcula los importes guardados. El generador usa el user_id explícito de la regla para funcionar también desde service_role sin una sesión personal.
+
+## Métricas (migración 20261029000000)
+
+### `financial_targets`
+Metas que usa la pestaña **Métricas**. Una fila por mes en que el usuario cambió sus metas;
+para evaluar un mes se usa la fila más reciente con `effective_month <=` ese mes, así cambiar
+las metas hoy no reescribe cómo se evaluaron los meses anteriores. Sin filas, la app usa los
+valores sugeridos (20 % de ahorro, sin meta de inversión, 6 meses de fondo).
+
+| Columna | Tipo | Notas |
+|---|---|---|
+| `effective_month` | date | día 1 del mes desde el que valen; único por usuario |
+| `savings_rate_bps` | integer | ahorro mínimo en puntos básicos (2000 = 20 %), 0–10000 |
+| `monthly_investment_cents` | bigint | aporte neto mensual esperado; 0 = sin meta |
+| `emergency_months` | integer | meses de gasto que debe cubrir el fondo, 1–24 |
+
+RLS: leer, crear y editar lo propio; sin borrado.
+
+### `accounts.in_emergency_fund`
+`boolean`, default `true`. Indica si el saldo de la cuenta cuenta como dinero disponible para el
+fondo de emergencia. Las tarjetas de crédito nunca cuentan, tengan el valor que tengan.
+
+Los cálculos (proyección al cierre, tasa de ahorro, ritmo del presupuesto, cumplimiento de
+inversión, fondo de emergencia, comparaciones por categoría y rachas) están en
+`src/lib/metrics.ts` como funciones puras, con pruebas en `src/lib/metrics.test.ts`.

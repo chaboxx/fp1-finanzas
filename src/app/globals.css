@@ -1,26 +1,92 @@
 @import "tailwindcss";
-
+@custom-variant dark (&:where(.dark, .dark *));
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f8faff;
+  --foreground: #182339;
 }
-
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-geist-sans), Inter, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), monospace;
 }
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+:root {
+  color-scheme: light;
 }
-
+:root.dark {
+  --background: #0d1421;
+  --foreground: #e5ebf5;
+  color-scheme: dark;
+}
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+}
+button,
+a,
+input,
+select,
+summary {
+  touch-action: manipulation;
+}
+button:not(:disabled),
+summary {
+  cursor: pointer;
+}
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="month"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  padding: 0.25rem;
+  opacity: 0.65;
+}
+:focus-visible {
+  outline: 2px solid #2a78d6;
+  outline-offset: 4px;
+}
+@layer components {
+  .panel {
+    @apply rounded-2xl border border-blue-100/70 bg-white p-5 shadow-[0_3px_14px_-7px_rgba(59,130,246,0.15)] dark:border-slate-800 dark:bg-slate-900;
+  }
+  .btn {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply bg-blue-600 text-white shadow-sm hover:bg-blue-700;
+  }
+  .btn-secondary {
+    @apply border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800;
+  }
+  .btn-ghost {
+    @apply text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800;
+  }
+  .field {
+    @apply min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 dark:border-slate-700 dark:bg-slate-900;
+  }
+  .segmented {
+    @apply flex flex-wrap gap-1 rounded-xl bg-blue-50/70 p-1 dark:bg-slate-800;
+  }
+  .segment {
+    @apply min-h-9 rounded-lg px-3 py-2 text-xs font-semibold text-slate-500 transition hover:text-slate-900 aria-pressed:bg-white aria-pressed:text-blue-700 aria-pressed:shadow-sm dark:hover:text-white dark:aria-pressed:bg-slate-700 dark:aria-pressed:text-blue-300;
+  }
+  .muted {
+    @apply text-sm text-slate-500 dark:text-slate-400;
+  }
+  .eyebrow {
+    @apply text-[11px] font-semibold tracking-[0.15em] text-slate-400 uppercase;
+  }
+  .metric-value {
+    @apply text-2xl font-semibold tracking-tight tabular-nums lg:text-[28px];
+  }
+  .modal-content > .panel {
+    @apply border-0 shadow-none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

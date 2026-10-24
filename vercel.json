@@ -1,0 +1,1 @@
+{ "crons": [{ "path": "/api/recurrentes", "schedule": "0 10 * * *" }] }

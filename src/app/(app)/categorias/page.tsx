@@ -14,7 +14,11 @@ export default function CategoriesPage() {
         title="Categorías"
         description="Organiza tus gastos, ingresos e inversiones. Las categorías no se borran: se deshabilitan y su historial se conserva."
       />
-      <Suspense fallback={<div className="h-64 animate-pulse rounded-2xl bg-zinc-200 dark:bg-zinc-800" />}>
+      <Suspense
+        fallback={
+          <div className="h-64 animate-pulse rounded-2xl bg-zinc-200 dark:bg-zinc-800" />
+        }
+      >
         <Categories />
       </Suspense>
     </>

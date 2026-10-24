@@ -1,63 +1,112 @@
 import type { ButtonHTMLAttributes, SelectHTMLAttributes } from "react";
-
-export function Card({ className = "", children }: { className?: string; children: React.ReactNode }) {
-  return (
-    <section className={`rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900 ${className}`}>
-      {children}
-    </section>
-  );
+import { RequiredMark } from "./required-mark";
+export function Card({
+  className = "",
+  children,
+}: {
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return <section className={"panel " + className}>{children}</section>;
 }
-
-export function PageHeader({ title, description }: { title: string; description?: string }) {
+export function PageHeader({
+  title,
+  description,
+  actions,
+}: {
+  title: string;
+  description?: string;
+  actions?: React.ReactNode;
+}) {
   return (
-    <div className="mb-6">
-      <h1 className="text-2xl font-semibold">{title}</h1>
-      {description && <p className="mt-1 text-sm text-zinc-500">{description}</p>}
+    <div className="mb-7 flex flex-wrap items-center justify-between gap-4">
+      <div>
+        <p className="eyebrow mb-2">Tu espacio financiero</p>
+        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+          {title}
+        </h1>
+        {description && <p className="muted mt-2">{description}</p>}
+      </div>
+      {actions}
     </div>
   );
 }
-
-export function Badge({ tone = "neutral", children }: { tone?: "neutral" | "success" | "muted"; children: React.ReactNode }) {
+export function Badge({
+  tone = "neutral",
+  children,
+}: {
+  tone?: "neutral" | "success" | "muted";
+  children: React.ReactNode;
+}) {
   const styles = {
-    neutral: "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300",
-    success: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400",
-    muted: "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-500",
+    neutral: "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300",
+    success:
+      "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
+    muted: "bg-slate-100 text-slate-500 dark:bg-slate-800",
   }[tone];
-  return <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${styles}`}>{children}</span>;
-}
-
-type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "primary" | "secondary" | "ghost" };
-
-export function Button({ variant = "secondary", className = "", ...props }: ButtonProps) {
-  const styles = {
-    primary: "bg-emerald-600 text-white hover:bg-emerald-700",
-    secondary: "border border-zinc-300 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800",
-    ghost: "text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800",
-  }[variant];
   return (
-    <button
-      className={`h-9 rounded-lg px-3 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-60 ${styles} ${className}`}
-      {...props}
-    />
+    <span
+      className={"rounded-full px-2.5 py-1 text-[11px] font-semibold " + styles}
+    >
+      {children}
+    </span>
   );
 }
-
-type SelectFieldProps = SelectHTMLAttributes<HTMLSelectElement> & { label: string; name: string };
-
-export function SelectField({ label, name, children, ...props }: SelectFieldProps) {
+export function Button({
+  variant = "secondary",
+  className = "",
+  ...props
+}: ButtonHTMLAttributes<HTMLButtonElement> & {
+  variant?: "primary" | "secondary" | "ghost";
+}) {
+  return (
+    <button className={"btn btn-" + variant + " " + className} {...props} />
+  );
+}
+export function SelectField({
+  label,
+  name,
+  children,
+  ...props
+}: SelectHTMLAttributes<HTMLSelectElement> & { label: string; name: string }) {
   return (
     <div className="flex flex-col gap-1.5">
       <label htmlFor={name} className="text-sm font-medium">
         {label}
+        {props.required && <RequiredMark />}
       </label>
-      <select
-        id={name}
-        name={name}
-        className="h-11 rounded-lg border border-zinc-300 bg-white px-3 text-base outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 dark:border-zinc-700 dark:bg-zinc-900"
-        {...props}
-      >
+      <select id={name} name={name} className="field" {...props}>
         {children}
       </select>
     </div>
+  );
+}
+export function EmptyState({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description: string;
+  children?: React.ReactNode;
+}) {
+  return (
+    <Card className="py-12 text-center">
+      <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-2xl bg-blue-50 text-2xl text-blue-600 dark:bg-blue-950">
+        ↗
+      </div>
+      <h2 className="font-semibold">{title}</h2>
+      <p className="muted mx-auto mt-2 max-w-md">{description}</p>
+      {children && <div className="mt-5">{children}</div>}
+    </Card>
+  );
+}
+export function LoadingPanel() {
+  return (
+    <div
+      role="status"
+      aria-label="Cargando datos"
+      className="h-80 animate-pulse rounded-2xl bg-slate-200/70 dark:bg-slate-800"
+    />
   );
 }

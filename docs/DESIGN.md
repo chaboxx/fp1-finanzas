@@ -3,13 +3,15 @@
 Este documento explica **cómo** está armado el sistema y **por qué**. El detalle del esquema
 está en [DATABASE.md](DATABASE.md), y lo que falta en [ROADMAP.md](ROADMAP.md).
 
+La revisión del 2026-10-24 define el MVP actualizado en [PLAN_MEJORA.md](PLAN_MEJORA.md). El presupuesto por porcentajes, las categorías predeterminadas y las pantallas de Inversiones/Presupuestos están implementados en código. La activación remota requiere la migración nueva: [ACTIVAR_MVP.md](ACTIVAR_MVP.md). Metas pasa al siguiente MVP.
+
 ## Contexto y restricciones
 
 - Uso personal: máximo 2 usuarios, baja transaccionalidad (decenas de movimientos al día como mucho).
 - Accesible desde cualquier dispositivo: web responsive, luego PWA instalable.
 - Moneda: soles (PEN). Zona horaria: `America/Lima` (UTC-5, sin horario de verano).
 - Registro abierto sin invitaciones (solo el dueño conoce la URL).
-- Sin categorías por defecto: el usuario crea las suyas.
+- Catálogos por usuario: categorías propias y típicas predeterminadas; cada usuario mantiene su copia editable y desactivable.
 
 ## Arquitectura
 
@@ -58,8 +60,24 @@ backend aparte: Next.js es el backend, y Postgres hace cumplir las reglas.
   de `<Suspense>` y detrás de `connection()`.
 - Los datos **no se cachean**: cada visita consulta la base (son pocos datos y deben estar al día).
   Después de mutar, `refresh()`.
-- Los filtros del dashboard viven en la **URL** (formulario GET con `next/form`): se pueden guardar
+- Los filtros del dashboard viven en la **URL** (formularios con navegación de cliente): se pueden guardar
   como marcador y el botón atrás funciona.
+
+### Selección temporal y filtros
+
+- Los accesos rápidos se conservan al cambiar solo cuentas o categorías. Editar Desde/Hasta los sustituye por un rango explícito.
+- Limpiar filtros aparece como enlace solo cuando hay cuentas, categorías, tipo o búsqueda aplicados. El enlace conserva las fechas, el acceso rápido y los controles del gráfico.
+- El gráfico usa los eventos de ratón de Recharts y ReferenceArea para marcar un tramo. Al soltar, los intervalos seleccionados se convierten en fechas inclusivas, se actualiza la URL y se consultan de nuevo tarjetas y gráficos. Funciona también de derecha a izquierda.
+- Se muestra el rango completo sin Brush ni controles inferiores de ampliación. El clic normal sobre un punto conserva el acceso al detalle del intervalo.
+- Presupuestos usa navegación de cliente al cambiar el campo de mes. useOptimistic muestra la elección durante la carga; no requiere un botón ni una recarga del documento.
+
+El patrón de selección está documentado en el [ejemplo oficial de Recharts](https://recharts.github.io/en-US/examples/HighlightAndZoomLineChart/).
+
+### Convenciones de formularios
+
+- DateInput conserva los selectores nativos de día/mes y la edición por teclado. Solicita showPicker al pulsar cualquier parte del campo; los navegadores sin soporte conservan su interacción nativa.
+- RequiredMark acompaña las etiquetas obligatorias y el atributo required comunica la misma condición a las ayudas de accesibilidad. Los campos opcionales no llevan asterisco ni explicaciones de autorrelleno; se conservan sus valores por defecto actuales en el servidor.
+- El acceso rápido global de movimientos muestra solo el icono +, con nombre accesible y título. Cada cuenta ocupa una tarjeta propia con 16 px de separación vertical.
 
 ## Decisiones y por qué
 
@@ -85,7 +103,7 @@ backend aparte: Next.js es el backend, y Postgres hace cumplir las reglas.
 |---|---|
 | Auth propia (usuario + contraseña, sesión de 24 h exactas) | El usuario prefirió el estándar de Supabase con email: menos código propio de seguridad. |
 | Registro con código de invitación | Complejidad innecesaria para 2 usuarios. Alternativa recomendada: desactivar el registro en Supabase después de crear las cuentas. |
-| Categorías por defecto | El usuario prefiere crear las suyas. |
-| Presupuesto como % del ingreso | El usuario prefiere montos fijos por mes, comparados contra el ingreso real. |
+| Categorías por defecto (decisión anterior, reemplazada) | La revisión actual pide categorías típicas y propias. No sobrescribir las personalizaciones existentes. |
+| Presupuesto como % del ingreso (decisión anterior, reemplazada) | Ahora se define un total previsto mensual y se reparte por porcentajes; el ingreso real sirve de comparación, sin cambiar esa base. |
 | Neon + Drizzle | Se eligió Supabase por traer Auth + RLS integrados. Costo: el plan gratis pausa tras 7 días sin uso (se resuelve con el cron diario del Sprint 5). |
 | App nativa (React Native / Flutter) | Una web responsive y luego PWA cubre celular y PC con un solo código y sin tiendas de apps. |

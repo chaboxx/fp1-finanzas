@@ -1,101 +1,62 @@
-# Roadmap
+# Estado del proyecto
 
-Estado al 2026-10-24. Cada sprint vive en su propia rama (ver [README](../README.md#ramas)).
+Actualizado el 24 de octubre de 2026. Alcance funcional en [PLAN_MEJORA.md](PLAN_MEJORA.md); activación en [ACTIVAR_MVP.md](ACTIVAR_MVP.md).
 
-## Hecho
+## Implementado en código
 
-| Sprint | Rama | Entregable |
-|---|---|---|
-| 0 | `sprint-0-schema` | Esquema completo (11 tablas, 5 vistas), reglas en triggers/CHECK, RLS, pruebas del esquema con PGlite |
-| 1 | `sprint-1-auth` | Registro, login, logout, confirmación de email, protección de rutas (`proxy.ts`), `requireUser()` |
-| 2 | `sprint-2-cuentas-categorias` | Cuentas (saldos, cuenta por defecto, deshabilitar), categorías por tipo (crear, renombrar, color, deshabilitar), navegación móvil |
-| 3 | `sprint-3-movimientos` | Formulario de gasto/ingreso/transferencia con autocompletado; lista mensual con totales, edición y borrado |
-| 4 | `sprint-4-dashboard` | Dashboard: filtros (período, categoría, cuenta), tarjetas con comparación, línea de egresos y dona por categoría; paleta accesible |
-
-### Requisitos originales: cumplimiento
-
-| Requisito | Estado |
+| Área | Comportamiento |
 |---|---|
-| Ver gasto total y resúmenes en tarjetas por período (mes, fecha) | ✅ Dashboard |
-| Ver gasto total y por categorías | ✅ Dashboard (dona + tabla) |
-| Gráfico de líneas por día/mes y por categoría | ✅ Dashboard |
-| Gráfico de torta con porcentajes | ✅ Dona + tabla con % |
-| Categorías principales y categorías propias | ✅ (por decisión del usuario, sin categorías por defecto) |
-| Login para que cada uno vea solo lo suyo | ✅ Supabase Auth + RLS |
-| Registrar gasto con formulario simple; fecha opcional = hoy | ✅ |
-| Categorías: no se borran, se deshabilitan; renombrar | ✅ |
-| Historial y dashboards incluyen categorías deshabilitadas | ✅ |
-| Cuentas: efectivo, débito, crédito, ahorro; cuenta por defecto; saldo por cuenta y total | ✅ |
-| Cuenta opcional en el formulario → cuenta por defecto | ✅ (lo resuelve la base de datos) |
-| Transferir entre cuentas sin que cuente como gasto | ✅ |
-| Registrar ingresos | ✅ |
-| Autocompletado con gastos frecuentes | ✅ |
-| Crear cuenta en la web | ✅ |
-| Pestaña de presupuesto por categoría y mes con avance | ⏳ Sprint 5 (esquema y vista listos) |
-| Movimientos recurrentes (sueldo, renta, suscripciones) | ⏳ Sprint 5 (esquema listo) |
-| Pestaña de inversiones con categorías y gráficos | ⏳ Sprint 6 (esquema listo) |
-| Metas de ahorro con barra de progreso | ⏳ Sprint 6 (esquema y vista listos) |
-| Fácil de usar desde cualquier dispositivo | 🟡 Responsive listo; falta PWA instalable y deploy |
-| Sesión de 1 día | 🔄 Reemplazado por decisión del usuario: la sesión la maneja Supabase (ver deuda técnica) |
+| Navegación y diseño | Barra lateral en escritorio, navegación móvil con Más, contenido amplio, tipografía consistente, botones con área cómoda, estilos claros y oscuros. |
+| Resumen | Períodos rápidos, mes/año elegibles, rango personalizado, cuentas y categorías múltiples, contexto global separado del análisis por categoría. |
+| Gráficos | Día/Semana/Mes elegible, métrica, total/categorías, acumulado, comparación, guía y tooltip, rango completo sin barra inferior, leyenda interactiva, dona seleccionable y detalle por intervalo. |
+| Consistencia | Resultado incluye rescates; transferencias no son gastos; futuros separados del ejecutado; consultas paginadas para no truncar el historial. |
+| Cuentas | Totales separados de dinero, deuda y saldo a favor; creación en diálogo amplio, filtros de estado, transferencias y acceso al historial. |
+| Inversiones | Pestaña propia, categorías simples, aportes y rescates atómicos, valorizaciones, posiciones iniciales sin descontar otra vez, edición y desactivación, gráficos e historial. |
+| Métricas | Pestaña propia: 4 indicadores con meta y estado (ahorro, ritmo del presupuesto, cumplimiento de inversión, fondo de emergencia), proyección al cierre del mes sin extrapolar gastos fijos, comparaciones por categoría contra el promedio de 3 meses a la misma altura del mes, historial de 6 meses con rachas y metas editables vigentes desde un mes. |
+| Presupuestos | Total mensual previsto + porcentajes; montos derivados, avance, exceso, sin asignación, copia del mes anterior, alertas en Resumen y comparación con ingreso real sin alterar la base. |
+| Categorías | Predeterminadas por usuario mediante migración y registro; crear propias, renombrar, color, desactivar/reactivar. Historial conservado. |
+| Movimientos | Búsqueda y filtros, enlaces desde gráficos y cuentas, identificación de aportes/rescates, edición y eliminación con confirmación y manejo de errores. |
+| Recurrentes | Ingresos, gastos y transferencias; crear/editar, pausar/reactivar, generación de pendientes, calendario anclado, recuperación tras errores y ruta diaria protegida. |
+| Acceso | Registro e inicio de sesión existentes con email y contraseña. La sesión estándar de Supabase no se cambia. |
+| Calidad | Tipos de base generados desde las migraciones, errores en español, pruebas de dominio y SQL, revisión automatizada en navegador y flujo de CI. |
+| Segunda revisión de UI | Desde/Hasta directos, accesos rápidos, casillas Todas, buscador sobre el historial, tarjetas con color semántico y altas/transferencias en diálogos. |
+| Perfil | Ruta propia, nombre, claro por defecto y opciones oscuro/sistema; vista previa local y persistencia por usuario al aplicar la migración 20261028000000. |
+| Exploración de fechas | Arrastrar un tramo del gráfico muestra Inicio/Fin en el recuadro y cambia el rango global, sus tarjetas y los campos Desde/Hasta. Las fechas manuales sustituyen accesos rápidos; limpiar selecciones conserva el período. |
+| Navegación mensual | Presupuestos cambia de mes al seleccionarlo, sin botón adicional ni recarga del documento. Cuentas muestra iconos bancarios y los filtros usan flechas SVG coherentes. |
+| Formularios y espacio | Calendarios al pulsar el campo completo; asteriscos en campos obligatorios, opcionales sin textos de autorrelleno, acceso rápido global solo con + y cuentas en tarjetas separadas. |
+| Producción | Publicada en [finanzas-app-eight-lyart.vercel.app](https://finanzas-app-eight-lyart.vercel.app), proyecto chaboxxs-projects/finanzas-app. Archivos de credenciales y pruebas excluidos de la publicación. |
 
-## Próximos sprints
+## Activación pendiente fuera del repositorio
 
-### Sprint 5: recurrentes y presupuestos
-- **Presupuestos** (`/presupuesto`): elegir mes, asignar monto por categoría de gasto o inversión, botón "copiar del mes anterior".
-  - Barra de avance por categoría (`budget_progress`): verde < 80%, ámbar 80–100%, rojo > 100%, siempre con ícono + texto y nunca solo color.
-  - Total presupuestado vs. **ingreso real del mes** (decisión del usuario), en tarjeta y gráfico.
-- **Recurrentes** (desde Movimientos): crear, pausar y editar reglas.
-  - Función SQL `generate_recurring_transactions(hasta date)` que crea los movimientos pendientes y avanza `next_run_on`. Es idempotente gracias al índice único.
-  - Cuidar el día 31: calcular cada fecha desde `start_on + n meses`, no sumando un mes a la anterior.
-  - Disparador: Vercel Cron diario → route handler protegido con un secreto (`CRON_SECRET`) que usa la *secret key* de Supabase **solo en el servidor**. Esto también evita que Supabase pause el proyecto por inactividad.
+- En otras instalaciones, ejecutar la migración 20261029000000_financial_targets.sql si aún falta para activar Métricas (sin ella, la pestaña muestra un aviso en vez de fallar).
+- La comprobación de estructura de solo lectura del despliegue encontró budget_plans, profiles.theme y financial_targets disponibles. Para otras instalaciones, seguir las [instrucciones de migración](ACTIVAR_MVP.md).
+- Comprobar las pantallas privadas con una sesión real en producción; la revisión remota sin sesión verificó acceso/registro, redirección de rutas privadas y ausencia de la página temporal de pruebas.
+- Comprobar en Supabase la URL de producción y la redirección de confirmación por correo; esta sesión no tiene acceso administrativo a esa configuración.
+- Revisar correspondencias de categorías históricas de inversión si existen. No se reclasifica por el nombre.
+- Configurar secretos del programador diario si se requiere generación mientras la app está cerrada.
+- Repositorio: [chaboxx/fp1-finanzas](https://github.com/chaboxx/fp1-finanzas), rama main. La publicación actual se hizo desde la carpeta local; conectar el repositorio en Vercel si se quieren despliegues automáticos por cada cambio.
 
-### Sprint 6: inversiones, metas y PWA
-- **Inversiones** (`/inversiones`): crear posiciones, registrar aportes (`invest`) y rescates (`divest`) desde una cuenta, registrar valorizaciones; gráfico de aportado vs. valor actual y rentabilidad por categoría. Así la tarjeta "Inversión" del dashboard deja de estar siempre en S/ 0.
-- **Metas de ahorro**: crear meta (monto, fecha), aportar/retirar, barra de progreso (`goal_progress`) y "te faltan S/ X; necesitas S/ Y por mes".
-- **PWA**: `app/manifest.ts`, íconos, `theme_color`, instalable en Android/iOS. El `proxy.ts` ya excluye `manifest.webmanifest`.
+## Verificación
 
-## Operación y despliegue (pendiente)
+Pruebas contables (`npm run test:contable`, detalle en [PRUEBAS_CONTABLES.md](PRUEBAS_CONTABLES.md)): 37 casos que ejecutan los formularios reales contra todas las migraciones, incluido un libro de ejemplo calculado a mano, ~2.5 años simulados con dos personas (cuadre al cierre de cada mes y métricas por mes), errores de formulario, calendario de recurrentes y una auditoría que detecta sabotajes. Para los datos reales: [scripts/auditoria.sql](../scripts/auditoria.sql), mensual.
 
-| Tarea | Por qué |
-|---|---|
-| Unir las ramas en `master` (`git merge --ff-only sprint-4-dashboard`) | Hoy `master` solo tiene el esqueleto |
-| Crear repositorio en GitHub y subirlo | No hay remoto; sin él no hay respaldo ni deploy |
-| Deploy en Vercel + variables de entorno | La app solo corre en local |
-| Supabase: *Site URL* y *Redirect URLs* de producción | Los enlaces de confirmación apuntarían a localhost |
-| Supabase: desactivar *Allow new users to sign up* tras crear los 2 usuarios | El registro está abierto; cualquiera con la URL podría crear cuenta (sus datos quedarían aislados por RLS, pero ocuparía tu proyecto) |
-| Evitar la pausa del plan gratis de Supabase (7 días sin uso) | Se resuelve con el cron del Sprint 5 |
-| Respaldos: exportar la base periódicamente (`pg_dump` o el backup de Supabase) | El plan gratis no guarda respaldos descargables por mucho tiempo |
+Los comandos y los casos de aceptación están documentados en [ACTIVAR_MVP.md](ACTIVAR_MVP.md). La compilación original de estilos se resolvió al usar la integración PostCSS de Tailwind.
 
-## Ideas a futuro (backlog)
+La revisión en navegador usa componentes reales con datos de ejemplo y no accede a la cuenta remota. Las reglas financieras y RLS se prueban en Postgres en memoria; esto no sustituye la comprobación posterior con la base real.
 
-Ordenadas por valor estimado para un usuario en Perú:
+La verificación incluye cálculos y filtros puros, escenarios SQL y recorridos de navegador: selección de fechas por arrastre en ambos sentidos, limpieza sin perder el período, navegación mensual sin recarga, modales, temas y vistas móviles. La página pública temporal y el servidor de revisión se eliminan al terminar.
 
-1. **Registro automático desde los correos del banco.** BCP, Interbank, BBVA y Scotiabank envían un correo por cada consumo. Una tarea programada leería esos correos (Gmail API, con permiso de solo lectura), extraería monto, comercio y fecha, y crearía el movimiento con la categoría sugerida. En Perú es más viable que el open banking, que casi no tiene cobertura local.
-2. **Multi-moneda (USD).** En Perú es común tener cuentas y tarjetas en dólares. Requiere `currency` por cuenta y un tipo de cambio por fecha.
-3. **Categorización automática** de descripciones nuevas con un LLM (Claude), aprendiendo de tus correcciones.
-4. **Importar estados de cuenta** (CSV/Excel del banco) y **exportar** movimientos a CSV.
-5. **Sincronización con brokers / apps de inversión** para registrar aportes y valorizaciones solos (requisito mencionado como "pronto").
-6. **Gastos compartidos** entre los 2 usuarios (quién pagó, quién debe).
-7. **Alertas**: presupuesto al 80%, suscripción por cobrar, saldo bajo.
-8. **Reporte mensual** automático por correo.
-9. **Foto del recibo** adjunta al movimiento (Supabase Storage).
-10. **Búsqueda** en movimientos y **subcategorías** (`categories.parent_id` ya existe).
-11. **Proyección de flujo de caja**: "a este ritmo, a fin de mes te quedan S/ X".
-12. **Modo oscuro manual** y **ocultar montos** (para abrir la app en público).
+## MVP siguiente
 
-## Deuda técnica y riesgos conocidos
+- Metas de ahorro: usar el modelo existente, definir si son reservas virtuales o fondos vinculados a una cuenta, aportes/retiros y progreso.
+- Sincronización de brokers con referencias externas para evitar duplicados.
+- USD y conversión de monedas, PWA, importación de estados y subcategorías.
 
-| Prioridad | Tema | Detalle / propuesta |
-|---|---|---|
-| Alta | Sin páginas de error | No hay `error.tsx` ni `not-found.tsx`. Si falla una consulta, se ve la página de error genérica de Next (en inglés). Agregar `app/(app)/error.tsx` con mensaje y botón "Reintentar". |
-| Alta | Verificación con datos reales | Los Sprints 2–4 se probaron con build, pruebas y datos de ejemplo, pero no con la sesión y los datos reales del usuario. |
-| Media | Cliente de Supabase sin tipos | Las consultas devuelven `any` y se tipan a mano. Generar tipos con `npx supabase gen types typescript --project-id <id> > src/lib/database.types.ts` y pasarlos a `createClient<Database>()`. |
-| Media | Migraciones manuales | Se pegan en el SQL Editor. Adoptar la Supabase CLI (`supabase link` + `supabase db push`) para no olvidar ninguna. |
-| Media | Sin pruebas end-to-end ni CI | Agregar Playwright (login → crear cuenta → registrar gasto → ver dashboard) y un GitHub Action con lint + test + test:db + build. |
-| Media | Duración de sesión | El requisito original pedía sesión de 1 día; hoy Supabase mantiene la sesión mientras se use (refresh tokens). Si se quiere limitar: *Time-box user sessions* (plan Pro) o cerrar sesión al detectar `iat` mayor a 24 h en `proxy.ts`. |
-| Baja | Zona horaria duplicada | La base usa `profiles.timezone`; el frontend usa la constante `TIME_ZONE` de `src/lib/dates.ts`. Coinciden mientras todo sea Lima. |
-| Baja | Comodines en el autocompletado | En `suggest_descriptions`, un `%` o `_` escrito por el usuario actúa como comodín. Escaparlos. |
-| Baja | Restos de la plantilla | `globals.css` fuerza `font-family: Arial` (pisa la fuente Geist) y `public/` tiene SVGs de ejemplo sin uso. |
-| Baja | Dona | El tooltip puede tapar el total del centro; las categorías agrupadas en "Otras" muestran su color propio en la tabla. |
-| Baja | Vista sin uso | `monthly_summary` no se usa (el dashboard calcula en TypeScript). Usarla o documentarla como API. |
-| Baja | Feedback al filtrar | Al cambiar un filtro se mantiene el gráfico anterior hasta que llegan los datos, pero sin indicador visual (atenuar con `useLinkStatus` o el estado del formulario). |
+## Deuda conocida
+
+- Decidir si reanudar un recurrente pausado debe generar las fechas vencidas durante la pausa (comportamiento actual) o saltarlas.
+
+- Migraciones todavía se activan manualmente; no hay credenciales de administración conectadas en este entorno.
+- Las valorizaciones pueden corresponder a fechas diferentes: la interfaz muestra sus fechas y no presenta la suma como rentabilidad.
+- La generación recupera hasta 400 vencimientos por regla y ejecución; se puede repetir para un historial mayor sin duplicar registros.
+- La zona del frontend es Lima; la base conserva el campo de zona del perfil para una ampliación futura.

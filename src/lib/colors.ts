@@ -16,9 +16,14 @@ export const CATEGORY_PALETTE = [
 // Color neutro para "Otras" y categorías sin color.
 export const NEUTRAL_COLOR = { light: "#8a8984", dark: "#7c7b75" };
 
-const DARK_BY_LIGHT = new Map<string, string>(CATEGORY_PALETTE.map((c) => [c.light, c.dark]));
+const DARK_BY_LIGHT = new Map<string, string>(
+  CATEGORY_PALETTE.map((c) => [c.light, c.dark]),
+);
 
-export function categoryColor(color: string | null | undefined, dark: boolean): string {
+export function categoryColor(
+  color: string | null | undefined,
+  dark: boolean,
+): string {
   if (!color) return dark ? NEUTRAL_COLOR.dark : NEUTRAL_COLOR.light;
   return dark ? (DARK_BY_LIGHT.get(color.toLowerCase()) ?? color) : color;
 }
@@ -26,9 +31,15 @@ export function categoryColor(color: string | null | undefined, dark: boolean): 
 // Dos categorías pueden tener el mismo color (lo elige el usuario). En un gráfico
 // eso las haría indistinguibles: la primera conserva su color y las repetidas
 // toman un color de la paleta que nadie más usa. Los items sin color (Otras) no cambian.
-export function withDistinctColors<T extends { color: string | null }>(items: T[]): T[] {
-  const taken = new Set(items.map((i) => i.color?.toLowerCase()).filter(Boolean));
-  const free = CATEGORY_PALETTE.map((c) => c.light).filter((c) => !taken.has(c));
+export function withDistinctColors<T extends { color: string | null }>(
+  items: T[],
+): T[] {
+  const taken = new Set(
+    items.map((i) => i.color?.toLowerCase()).filter(Boolean),
+  );
+  const free = CATEGORY_PALETTE.map((c) => c.light).filter(
+    (c) => !taken.has(c),
+  );
   const seen = new Set<string>();
   return items.map((item) => {
     if (!item.color) return item;

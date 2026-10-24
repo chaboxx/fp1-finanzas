@@ -12,7 +12,10 @@ const URL_ERRORS: Record<string, string> = {
 };
 
 export function LoginForm() {
-  const [state, formAction, pending] = useActionState(login, {} as AuthFormState);
+  const [state, formAction, pending] = useActionState(
+    login,
+    {} as AuthFormState,
+  );
   const searchParams = useSearchParams();
   const urlError = URL_ERRORS[searchParams.get("error") ?? ""];
 
@@ -20,7 +23,9 @@ export function LoginForm() {
     <form action={formAction} className="flex flex-col gap-4" noValidate>
       <h1 className="text-xl font-semibold">Iniciar sesión</h1>
 
-      {(state.error ?? urlError) && <FormAlert tone="error">{state.error ?? urlError}</FormAlert>}
+      {(state.error ?? urlError) && (
+        <FormAlert tone="error">{state.error ?? urlError}</FormAlert>
+      )}
 
       <FormField
         label="Email"
@@ -45,7 +50,10 @@ export function LoginForm() {
 
       <p className="text-center text-sm text-zinc-600 dark:text-zinc-400">
         ¿No tienes cuenta?{" "}
-        <Link href="/signup" className="font-medium text-emerald-700 hover:underline dark:text-emerald-400">
+        <Link
+          href="/signup"
+          className="font-medium text-emerald-700 hover:underline dark:text-emerald-400"
+        >
           Crear cuenta
         </Link>
       </p>

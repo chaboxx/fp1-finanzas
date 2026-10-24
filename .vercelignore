@@ -1,0 +1,16 @@
+# Las credenciales se configuran como variables del proyecto, no como archivos.
+/.env
+/.env.*
+/.git
+/.next
+/.next-review
+/node_modules
+/test-results
+/playwright-report
+/coverage
+/tests
+/docs
+/supabase
+/.github
+/AGENTS.md
+*.tsbuildinfo

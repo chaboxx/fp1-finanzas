@@ -1,13 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { startTransition, useActionState, useState } from "react";
+import { startTransition, useActionState, useRef, useState } from "react";
 import { FormAlert, SubmitButton } from "@/components/form-field";
 import { Card } from "@/components/ui";
+import { DateInput } from "@/components/date-input";
+import { RequiredMark } from "@/components/required-mark";
 import type { ActionState } from "@/lib/action-state";
 import { centsToInput } from "@/lib/money";
 import type { Account, Category, Movement } from "@/lib/types";
 import { saveMovement } from "./actions";
+import { useCloseModal } from "@/components/form-modal";
 import { DescriptionCombobox, type Suggestion } from "./description-combobox";
 
 type FormType = "expense" | "income" | "transfer";
@@ -23,33 +26,63 @@ type Props = {
   categories: Category[];
   defaultAccountId: string | null;
   movement?: Movement; // si viene, el formulario edita en vez de crear
+  initialType?: FormType;
+  initialAccount?: string;
+  onlyType?: FormType;
 };
 
-export function MovementForm({ accounts, categories, defaultAccountId, movement }: Props) {
+export function MovementForm({
+  accounts,
+  categories,
+  defaultAccountId,
+  movement,
+  initialType,
+  initialAccount,
+  onlyType,
+}: Props) {
   const editing = Boolean(movement);
-  const [type, setType] = useState<FormType>((movement?.type as FormType) ?? "expense");
-  const [amount, setAmount] = useState(movement ? centsToInput(movement.amount_cents) : "");
+  const closeModal = useCloseModal();
+  const [type, setType] = useState<FormType>(
+    (movement?.type as FormType) ?? initialType ?? "expense",
+  );
+  const requestId = useRef<string | null>(null);
+  const [amount, setAmount] = useState(
+    movement ? centsToInput(movement.amount_cents) : "",
+  );
   const [description, setDescription] = useState(movement?.description ?? "");
   const [categoryId, setCategoryId] = useState(movement?.category_id ?? "");
-  const [accountId, setAccountId] = useState(movement?.account_id ?? "");
+  const [accountId, setAccountId] = useState(
+    movement?.account_id ??
+      initialAccount ??
+      (initialType === "transfer" ? (defaultAccountId ?? "") : ""),
+  );
   const [toAccountId, setToAccountId] = useState(movement?.to_account_id ?? "");
   const [occurredOn, setOccurredOn] = useState(movement?.occurred_on ?? "");
 
-  const [state, formAction, pending] = useActionState(async (prev: ActionState, formData: FormData) => {
-    const result = await saveMovement(prev, formData);
-    if (result.ok) {
-      // Listo para registrar otro: se conservan tipo, cuenta y fecha.
-      setAmount("");
-      setDescription("");
-      setCategoryId("");
-    }
-    return result;
-  }, {});
+  const [state, formAction, pending] = useActionState(
+    async (prev: ActionState, formData: FormData) => {
+      const result = await saveMovement(prev, formData);
+      if (result.ok) {
+        closeModal?.();
+        requestId.current = null;
+        // Listo para registrar otro: se conservan tipo, cuenta y fecha.
+        setAmount("");
+        setDescription("");
+        setCategoryId("");
+      }
+      return result;
+    },
+    {},
+  );
 
   // Las deshabilitadas no se ofrecen, salvo la que ya tiene el movimiento que se edita.
-  const usable = <T extends { id: string; is_active: boolean }>(items: T[], current?: string | null) =>
-    items.filter((i) => i.is_active || i.id === current);
-  const kindCategories = usable(categories, movement?.category_id).filter((c) => c.kind === type);
+  const usable = <T extends { id: string; is_active: boolean }>(
+    items: T[],
+    current?: string | null,
+  ) => items.filter((i) => i.is_active || i.id === current);
+  const kindCategories = usable(categories, movement?.category_id).filter(
+    (c) => c.kind === type,
+  );
   const usableAccounts = usable(accounts, movement?.account_id).concat(
     accounts.filter((a) => !a.is_active && a.id === movement?.to_account_id),
   );
@@ -59,13 +92,16 @@ export function MovementForm({ accounts, categories, defaultAccountId, movement 
   function changeType(next: FormType) {
     setType(next);
     setCategoryId("");
-    if (next === "transfer" && !accountId && defaultAccountId) setAccountId(defaultAccountId);
+    if (next === "transfer" && !accountId && defaultAccountId)
+      setAccountId(defaultAccountId);
   }
 
   function applySuggestion(s: Suggestion) {
     setDescription(s.description);
-    if (s.category_id && kindCategories.some((c) => c.id === s.category_id)) setCategoryId(s.category_id);
-    if (s.account_id && usableAccounts.some((a) => a.id === s.account_id)) setAccountId(s.account_id);
+    if (s.category_id && kindCategories.some((c) => c.id === s.category_id))
+      setCategoryId(s.category_id);
+    if (s.account_id && usableAccounts.some((a) => a.id === s.account_id))
+      setAccountId(s.account_id);
     if (!amount) setAmount(centsToInput(Number(s.amount_cents)));
   }
 
@@ -74,19 +110,27 @@ export function MovementForm({ accounts, categories, defaultAccountId, movement 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
+    requestId.current ??= crypto.randomUUID();
+    formData.set("requestId", requestId.current);
     startTransition(() => formAction(formData));
   }
 
-  if (accounts.length === 0 || categories.length === 0) {
+  if (accounts.length === 0) {
     return (
       <Card>
         <p className="text-sm text-zinc-600 dark:text-zinc-400">
           Antes de registrar movimientos necesitas al menos una{" "}
-          <Link href="/cuentas" className="font-medium text-emerald-700 hover:underline dark:text-emerald-400">
+          <Link
+            href="/cuentas"
+            className="font-medium text-blue-700 hover:underline dark:text-blue-400"
+          >
             cuenta
           </Link>{" "}
           y una{" "}
-          <Link href="/categorias" className="font-medium text-emerald-700 hover:underline dark:text-emerald-400">
+          <Link
+            href="/categorias"
+            className="font-medium text-blue-700 hover:underline dark:text-blue-400"
+          >
             categoría
           </Link>
           .
@@ -101,8 +145,15 @@ export function MovementForm({ accounts, categories, defaultAccountId, movement 
         {movement && <input type="hidden" name="id" value={movement.id} />}
         <input type="hidden" name="type" value={type} />
 
-        <div role="radiogroup" aria-label="Tipo de movimiento" className="grid grid-cols-3 gap-1 rounded-xl bg-zinc-200/60 p-1 dark:bg-zinc-800">
-          {TYPES.map((t) => (
+        <div
+          role="radiogroup"
+          aria-label="Tipo de movimiento"
+          className={
+            "grid gap-1 rounded-xl bg-blue-50/70 p-1 dark:bg-slate-800 " +
+            (onlyType ? "grid-cols-1" : "grid-cols-3")
+          }
+        >
+          {TYPES.filter((t) => !onlyType || t.value === onlyType).map((t) => (
             <button
               key={t.value}
               type="button"
@@ -116,18 +167,24 @@ export function MovementForm({ accounts, categories, defaultAccountId, movement 
           ))}
         </div>
 
-        {state.ok && state.message && <FormAlert tone="success">{state.message}</FormAlert>}
+        {state.ok && state.message && (
+          <FormAlert tone="success">{state.message}</FormAlert>
+        )}
         {state.error && <FormAlert tone="error">{state.error}</FormAlert>}
 
         <div className="flex flex-col gap-1.5">
           <label htmlFor="amount" className="text-sm font-medium">
             Monto
+            <RequiredMark />
           </label>
           <div className="relative">
-            <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-lg text-zinc-500">S/</span>
+            <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-lg text-zinc-500">
+              S/
+            </span>
             <input
               id="amount"
               name="amount"
+              required
               inputMode="decimal"
               autoComplete="off"
               placeholder="0.00"
@@ -135,10 +192,14 @@ export function MovementForm({ accounts, categories, defaultAccountId, movement 
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               aria-invalid={Boolean(errors.amount)}
-              className="h-14 w-full rounded-lg border border-zinc-300 bg-white pr-3 pl-11 text-2xl font-semibold tabular-nums outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 aria-invalid:border-red-500 dark:border-zinc-700 dark:bg-zinc-900"
+              className="h-14 w-full rounded-lg border border-zinc-300 bg-white pr-3 pl-11 text-2xl font-semibold tabular-nums outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 aria-invalid:border-red-500 dark:border-zinc-700 dark:bg-zinc-900"
             />
           </div>
-          {errors.amount && <p className="text-sm text-red-600 dark:text-red-400">{errors.amount}</p>}
+          {errors.amount && (
+            <p className="text-sm text-red-600 dark:text-red-400">
+              {errors.amount}
+            </p>
+          )}
         </div>
 
         <DescriptionCombobox
@@ -151,11 +212,18 @@ export function MovementForm({ accounts, categories, defaultAccountId, movement 
 
         {type !== "transfer" && (
           <fieldset className="flex flex-col gap-2">
-            <legend className="mb-2 text-sm font-medium">Categoría</legend>
+            <legend className="mb-2 text-sm font-medium">
+              Categoría
+              <RequiredMark />
+            </legend>
             {kindCategories.length === 0 ? (
               <p className="text-sm text-zinc-500">
-                No tienes categorías de {type === "expense" ? "gasto" : "ingreso"}.{" "}
-                <Link href="/categorias" className="font-medium text-emerald-700 hover:underline dark:text-emerald-400">
+                No tienes categorías de{" "}
+                {type === "expense" ? "gasto" : "ingreso"}.{" "}
+                <Link
+                  href="/categorias"
+                  className="font-medium text-blue-700 hover:underline dark:text-blue-400"
+                >
                   Crear una
                 </Link>
               </p>
@@ -164,23 +232,31 @@ export function MovementForm({ accounts, categories, defaultAccountId, movement 
                 {kindCategories.map((c) => (
                   <label
                     key={c.id}
-                    className="flex cursor-pointer items-center gap-2 rounded-full border border-zinc-300 px-3 py-1.5 text-sm transition has-checked:border-emerald-600 has-checked:bg-emerald-50 has-checked:text-emerald-800 dark:border-zinc-700 dark:has-checked:bg-emerald-950 dark:has-checked:text-emerald-300"
+                    className="flex cursor-pointer items-center gap-2 rounded-full border border-zinc-300 px-3 py-1.5 text-sm transition has-checked:border-blue-600 has-checked:bg-blue-50 has-checked:text-blue-800 dark:border-zinc-700 dark:has-checked:bg-blue-950 dark:has-checked:text-blue-300"
                   >
                     <input
                       type="radio"
                       name="categoryId"
+                      required
                       value={c.id}
                       checked={categoryId === c.id}
                       onChange={() => setCategoryId(c.id)}
                       className="sr-only"
                     />
-                    <span className="size-2.5 rounded-full" style={{ backgroundColor: c.color ?? "#a1a1aa" }} />
+                    <span
+                      className="size-2.5 rounded-full"
+                      style={{ backgroundColor: c.color ?? "#a1a1aa" }}
+                    />
                     {c.name}
                   </label>
                 ))}
               </div>
             )}
-            {errors.categoryId && <p className="text-sm text-red-600 dark:text-red-400">{errors.categoryId}</p>}
+            {errors.categoryId && (
+              <p className="text-sm text-red-600 dark:text-red-400">
+                {errors.categoryId}
+              </p>
+            )}
           </fieldset>
         )}
 
@@ -191,8 +267,13 @@ export function MovementForm({ accounts, categories, defaultAccountId, movement 
             value={accountId}
             onChange={setAccountId}
             accounts={usableAccounts}
-            emptyLabel={type === "transfer" ? "Elige una cuenta" : `Por defecto${defaultAccount ? ` (${defaultAccount.name})` : ""}`}
+            emptyLabel={
+              type === "transfer"
+                ? "Elige una cuenta"
+                : `Por defecto${defaultAccount ? ` (${defaultAccount.name})` : ""}`
+            }
             error={errors.accountId}
+            required={type === "transfer"}
           />
           {type === "transfer" ? (
             <AccountSelect
@@ -203,37 +284,47 @@ export function MovementForm({ accounts, categories, defaultAccountId, movement 
               accounts={usableAccounts.filter((a) => a.id !== accountId)}
               emptyLabel="Elige una cuenta"
               error={errors.toAccountId}
+              required
             />
           ) : null}
           <div className="flex flex-col gap-1.5">
             <label htmlFor="occurredOn" className="text-sm font-medium">
               Fecha
             </label>
-            <input
+            <DateInput
               id="occurredOn"
               name="occurredOn"
               type="date"
               value={occurredOn}
               onChange={(e) => setOccurredOn(e.target.value)}
-              className="h-11 rounded-lg border border-zinc-300 bg-white px-3 text-base outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 dark:border-zinc-700 dark:bg-zinc-900"
+              className="field"
             />
-            <p className="text-xs text-zinc-500">{occurredOn ? "" : "Vacío = hoy"}</p>
-            {errors.occurredOn && <p className="text-sm text-red-600 dark:text-red-400">{errors.occurredOn}</p>}
+            {errors.occurredOn && (
+              <p className="text-sm text-red-600 dark:text-red-400">
+                {errors.occurredOn}
+              </p>
+            )}
           </div>
         </div>
 
         {type === "transfer" && (
           <p className="text-xs text-zinc-500">
-            Una transferencia mueve dinero entre tus cuentas (por ejemplo, pagar la tarjeta). No cuenta como gasto ni como ingreso.
+            Una transferencia mueve dinero entre tus cuentas (por ejemplo, pagar
+            la tarjeta). No cuenta como gasto ni como ingreso.
           </p>
         )}
 
         <div className="flex items-center gap-3">
           <div className="w-40">
-            <SubmitButton pending={pending}>{editing ? "Guardar cambios" : "Guardar"}</SubmitButton>
+            <SubmitButton pending={pending}>
+              {editing ? "Guardar cambios" : "Guardar"}
+            </SubmitButton>
           </div>
           {editing && (
-            <Link href="/movimientos" className="text-sm font-medium text-zinc-600 hover:underline dark:text-zinc-400">
+            <Link
+              href="/movimientos"
+              className="text-sm font-medium text-zinc-600 hover:underline dark:text-zinc-400"
+            >
               Cancelar
             </Link>
           )}
@@ -251,21 +342,33 @@ type AccountSelectProps = {
   accounts: Account[];
   emptyLabel: string;
   error?: string;
+  required?: boolean;
 };
 
-function AccountSelect({ name, label, value, onChange, accounts, emptyLabel, error }: AccountSelectProps) {
+function AccountSelect({
+  name,
+  label,
+  value,
+  onChange,
+  accounts,
+  emptyLabel,
+  error,
+  required,
+}: AccountSelectProps) {
   return (
     <div className="flex flex-col gap-1.5">
       <label htmlFor={name} className="text-sm font-medium">
         {label}
+        {required && <RequiredMark />}
       </label>
       <select
         id={name}
         name={name}
+        required={required}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         aria-invalid={Boolean(error)}
-        className="h-11 rounded-lg border border-zinc-300 bg-white px-3 text-base outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 aria-invalid:border-red-500 dark:border-zinc-700 dark:bg-zinc-900"
+        className="h-11 rounded-lg border border-zinc-300 bg-white px-3 text-base outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 aria-invalid:border-red-500 dark:border-zinc-700 dark:bg-zinc-900"
       >
         <option value="">{emptyLabel}</option>
         {accounts.map((a) => (
@@ -274,7 +377,9 @@ function AccountSelect({ name, label, value, onChange, accounts, emptyLabel, err
           </option>
         ))}
       </select>
-      {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+      {error && (
+        <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+      )}
     </div>
   );
 }

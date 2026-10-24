@@ -1,207 +1,187 @@
-import Link from "next/link";
 import { Suspense } from "react";
-import { Card } from "@/components/ui";
+import { PageHeader, LoadingPanel } from "@/components/ui";
+import { StatCard } from "@/components/stat-card";
+import { BudgetSnapshot } from "@/components/budget-snapshot";
 import { requireUser } from "@/lib/auth";
 import {
+  generateDue,
+  getBudgetData,
+  getCatalogs,
+  getReportRows,
+} from "@/lib/finance-data";
+import {
   change,
+  addDays,
   inRange,
-  OTHER_ID,
-  outflowByCategory,
-  outflowTrend,
   resolvePeriod,
   summarize,
-  topWithOther,
-  type DashboardRow,
+  values,
+  type Params,
 } from "@/lib/dashboard";
-import { withDistinctColors } from "@/lib/colors";
-import { todayISO } from "@/lib/dates";
-import { formatCents } from "@/lib/money";
-import { CategoryDonut, CategoryDot, TrendChart } from "./_dashboard/charts";
+import { todayISO, monthRange, formatMonth } from "@/lib/dates";
 import { DashboardFilters } from "./_dashboard/filters";
-
+import { ReportExplorer } from "./_dashboard/explorer";
+import { formatCents } from "@/lib/money";
 export default function DashboardPage({ searchParams }: PageProps<"/">) {
   return (
     <>
-      <h1 className="mb-4 text-2xl font-semibold">Resumen</h1>
-      <Suspense fallback={<div className="h-[32rem] animate-pulse rounded-2xl bg-zinc-200 dark:bg-zinc-800" />}>
+      <PageHeader
+        title="Tu dinero, con claridad"
+        description="Mira dónde estás, entiende tus hábitos y decide tu siguiente paso."
+      />
+      <Suspense fallback={<LoadingPanel />}>
         <Dashboard searchParams={searchParams} />
       </Suspense>
     </>
   );
 }
-
-async function Dashboard({ searchParams }: { searchParams: PageProps<"/">["searchParams"] }) {
-  const { supabase } = await requireUser();
-  const params = await searchParams;
-  const period = resolvePeriod(params, todayISO());
-  const categoria = typeof params.categoria === "string" ? params.categoria : "";
-  const cuenta = typeof params.cuenta === "string" ? params.cuenta : "";
-
-  // Un solo viaje a la base: período actual + período anterior (para comparar).
-  let query = supabase
-    .from("categorized_movements")
-    .select("type, amount_cents, occurred_on, category_id, category_name, category_color, category_is_active")
-    .in("type", ["expense", "income", "invest"])
-    .gte("occurred_on", period.prevFrom < period.from ? period.prevFrom : period.from)
-    .lt("occurred_on", period.to);
-  if (categoria) query = query.eq("category_id", categoria);
-  if (cuenta) query = query.eq("account_id", cuenta);
-
-  const [movements, categories, accounts] = await Promise.all([
-    query,
-    supabase.from("categories").select("id, name, is_active").neq("kind", "income").order("name"),
-    supabase.from("accounts").select("id, name, is_active").order("created_at"),
+async function Dashboard({ searchParams }: { searchParams: Promise<Params> }) {
+  const { supabase, userId } = await requireUser(),
+    params = await searchParams,
+    today = todayISO(),
+    period = resolvePeriod(params, today);
+  const month =
+      period.key === "mes" ? period.from.slice(0, 7) : today.slice(0, 7),
+    range = monthRange(month);
+  await generateDue(supabase);
+  const [catalogs, rows, budget, budgetRows] = await Promise.all([
+    getCatalogs(supabase, userId),
+    getReportRows(
+      supabase,
+      period.prevFrom < period.from ? period.prevFrom : period.from,
+      period.to,
+    ),
+    getBudgetData(supabase, month),
+    getReportRows(supabase, range.from, range.to),
   ]);
-  if (movements.error) throw new Error("No se pudo cargar el resumen");
-
-  const rows = (movements.data as DashboardRow[]).map((r) => ({ ...r, amount_cents: Number(r.amount_cents) }));
-  const current = inRange(rows, period.from, period.to);
-  const previous = inRange(rows, period.prevFrom, period.prevTo);
-  const now = summarize(current);
-  const before = summarize(previous);
-
-  const slices = outflowByCategory(current);
-  // Los colores se resuelven una sola vez: una categoría tiene el mismo color en todos los gráficos.
-  const donutSlices = withDistinctColors(topWithOther(slices, 7)); // máx. 8 colores
-  const donutColor = new Map(donutSlices.map((s) => [s.id, s.color]));
-  const lineSeries = topWithOther(slices, 4).map((s) => ({ ...s, color: donutColor.get(s.id) ?? s.color }));
-  const trend = outflowTrend(current, period, lineSeries.map((s) => s.id));
-  const dailyAverage = period.elapsedDays ? Math.round(now.outflow / period.elapsedDays) : 0;
-  const spentShare = now.income ? (now.outflow / now.income) * 100 : null;
-
-  const filters = (
-    <DashboardFilters
-      periodo={period.key}
-      mes={period.key === "mes" ? period.from.slice(0, 7) : todayISO().slice(0, 7)}
-      desde={typeof params.desde === "string" ? params.desde : ""}
-      hasta={typeof params.hasta === "string" ? params.hasta : ""}
-      categoria={categoria}
-      cuenta={cuenta}
-      categories={categories.data ?? []}
-      accounts={accounts.data ?? []}
-    />
+  const accounts = values(params, "cuenta"),
+    categories = values(params, "categoria");
+  const scoped = rows.filter(
+    (r) => !accounts.length || accounts.includes(r.account_id ?? ""),
   );
-
-  if (current.length === 0) {
-    return (
-      <div className="flex flex-col gap-6">
-        {filters}
-        <Card>
-          <p className="text-sm text-zinc-500">
-            No hay movimientos en {period.label.toLowerCase()} con estos filtros.{" "}
-            <Link href="/movimientos/nuevo" className="font-medium text-emerald-700 hover:underline dark:text-emerald-400">
-              Registrar un movimiento
-            </Link>
-          </p>
-        </Card>
-      </div>
+  const current = inRange(scoped, period.from, period.plotTo),
+    previous = inRange(scoped, period.prevFrom, period.prevTo);
+  const now = summarize(current),
+    before = summarize(previous),
+    monthly = summarize(budgetRows.filter((r) => r.occurred_on <= today));
+  const analyzed = current.filter(
+      (r) => !categories.length || categories.includes(r.category_id),
+    ),
+    prior = previous.filter(
+      (r) => !categories.length || categories.includes(r.category_id),
     );
-  }
-
   return (
-    <div className="flex flex-col gap-6">
-      {filters}
-
-      <p className="-mb-2 text-sm text-zinc-500">
-        {period.label} · comparado con los mismos {period.elapsedDays} días del período anterior
-      </p>
-
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatCard label="Ingresos" cents={now.income} delta={change(now.income, before.income)} goodWhenUp />
+    <>
+      <DashboardFilters
+        key={"filters-" + JSON.stringify(params)}
+        params={params}
+        period={period}
+        {...catalogs}
+      />
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs text-slate-400">
+          {period.label} ·{" "}
+          {accounts.length ? "cuentas seleccionadas" : "todas las cuentas"} ·
+          sin filtrar categorías
+        </p>
+        <span className="text-[11px] text-slate-400">
+          {period.prevTo > period.prevFrom
+            ? "Comparado con " +
+              period.prevFrom +
+              " al " +
+              addDays(period.prevTo, -1)
+            : "Sin días ejecutados para comparar"}
+        </span>
+      </div>
+      <div className="mb-6 grid grid-cols-2 gap-3 xl:grid-cols-5">
         <StatCard
-          label="Gastos"
-          cents={now.expense}
-          delta={change(now.expense, before.expense)}
-          footnote={`Promedio diario de egresos: ${formatCents(dailyAverage)}`}
+          tone="income"
+          label="Ingresos"
+          value={now.income}
+          icon="arrow"
+          delta={change(now.income, before.income)}
         />
-        <StatCard label="Inversión" cents={now.invested} delta={change(now.invested, before.invested)} goodWhenUp />
         <StatCard
-          label="Balance"
-          cents={now.balance}
-          footnote={spentShare === null ? undefined : `Usaste el ${spentShare.toFixed(0)}% de tus ingresos`}
-          negative={now.balance < 0}
+          tone="expense"
+          label="Gastos"
+          value={now.expense}
+          icon="wallet"
+          delta={change(now.expense, before.expense)}
+        />
+        <StatCard
+          tone="investment"
+          label="Aportes a inversiones"
+          value={now.invested}
+          icon="trend"
+          delta={change(now.invested, before.invested)}
+        />
+        <StatCard
+          tone="expense"
+          label="Egresos totales"
+          value={now.outflow}
+          icon="list"
+          footnote="Gastos + aportes; sin transferencias"
+        />
+        <StatCard
+          tone="balance"
+          label="Resultado del período"
+          value={now.balance}
+          emphasis
+          icon="budget"
+          footnote={
+            now.divested
+              ? "Incluye " + formatCents(now.divested) + " en rescates"
+              : "Ingresos − gastos − aportes"
+          }
         />
       </div>
-
-      <Card>
-        <TrendChart
-          data={trend}
-          granularity={period.granularity}
-          series={lineSeries.map((s) => ({ id: s.id, name: s.name, color: s.color }))}
+      <ReportExplorer
+        key={"explorer-" + JSON.stringify(params)}
+        rows={analyzed}
+        previous={prior}
+        period={period}
+        params={params}
+      />
+      <div className="mt-6 grid gap-6 xl:grid-cols-2">
+        <BudgetSnapshot
+          budget={budget}
+          month={month}
+          income={monthly.income}
+          outflow={monthly.outflow}
         />
-      </Card>
-
-      <Card>
-        <h2 className="mb-4 font-semibold">Egresos por categoría</h2>
-        <div className="grid items-center gap-6 md:grid-cols-[15rem_1fr]">
-          <CategoryDonut slices={donutSlices} total={now.outflow} />
-          {/* Tabla: los mismos datos del gráfico, accesibles sin pasar el mouse. */}
-          <table className="w-full text-sm">
-            <caption className="sr-only">Egresos por categoría</caption>
-            <thead className="sr-only">
-              <tr>
-                <th>Categoría</th>
-                <th>Monto</th>
-                <th>Porcentaje</th>
-              </tr>
-            </thead>
-            <tbody>
-              {slices.map((s) => (
-                <tr key={s.id} className="border-b border-zinc-100 last:border-0 dark:border-zinc-800">
-                  <td className="py-2 pr-2">
-                    <Link
-                      href={categoryHref(params, s.id)}
-                      className="flex items-center gap-2 hover:underline"
-                      title="Filtrar por esta categoría"
-                    >
-                      <CategoryDot color={donutColor.get(s.id) ?? s.color} />
-                      <span className="truncate">{s.name}</span>
-                      {!s.isActive && <span className="text-xs text-zinc-400">(deshabilitada)</span>}
-                    </Link>
-                  </td>
-                  <td className="py-2 text-right font-medium tabular-nums">{formatCents(s.cents)}</td>
-                  <td className="w-16 py-2 text-right text-zinc-500 tabular-nums">{s.pct.toFixed(1)}%</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Card>
-    </div>
-  );
-}
-
-function categoryHref(params: Record<string, string | string[] | undefined>, categoryId: string) {
-  const next = new URLSearchParams();
-  for (const [k, v] of Object.entries(params)) if (typeof v === "string" && v) next.set(k, v);
-  if (categoryId !== OTHER_ID) next.set("categoria", categoryId);
-  return `/?${next}`;
-}
-
-type StatCardProps = {
-  label: string;
-  cents: number;
-  delta?: number | null;
-  goodWhenUp?: boolean;
-  footnote?: string;
-  negative?: boolean;
-};
-
-function StatCard({ label, cents, delta, goodWhenUp = false, footnote, negative = false }: StatCardProps) {
-  // Subir es bueno en ingresos e inversión, malo en gastos. Flecha + texto: no solo color.
-  const good = delta == null ? null : goodWhenUp ? delta >= 0 : delta <= 0;
-  return (
-    <Card className="flex flex-col gap-1">
-      <p className="text-sm text-zinc-500">{label}</p>
-      <p className={`text-xl font-semibold tabular-nums sm:text-2xl ${negative ? "text-red-600 dark:text-red-400" : ""}`}>
-        {formatCents(cents)}
-      </p>
-      {delta != null && (
-        <p className={`text-xs font-medium ${good ? "text-emerald-700 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}>
-          {delta >= 0 ? "▲" : "▼"} {Math.abs(delta).toFixed(0)}% vs. período anterior
-        </p>
-      )}
-      {footnote && <p className="text-xs text-zinc-500">{footnote}</p>}
-    </Card>
+        <section className="panel">
+          <p className="eyebrow mb-2">Lectura rápida</p>
+          <h2 className="mb-5 font-semibold">
+            Así va {formatMonth(month).toLowerCase()}
+          </h2>
+          <div className="space-y-4 text-sm">
+            <p className="flex justify-between gap-3 text-slate-500">
+              Ingresos registrados
+              <strong className="text-slate-800 tabular-nums dark:text-slate-200">
+                {formatCents(monthly.income)}
+              </strong>
+            </p>
+            <p className="flex justify-between gap-3 text-slate-500">
+              Gastos y aportes
+              <strong className="text-slate-800 tabular-nums dark:text-slate-200">
+                {formatCents(monthly.outflow)}
+              </strong>
+            </p>
+            <p className="flex justify-between gap-3 border-t border-slate-100 pt-4 text-slate-500 dark:border-slate-800">
+              Proporción de ingresos utilizada
+              <strong className="text-slate-800 dark:text-slate-200">
+                {monthly.income
+                  ? ((monthly.outflow / monthly.income) * 100).toFixed(1) + " %"
+                  : "Aún no hay ingresos"}
+              </strong>
+            </p>
+          </div>
+          <p className="mt-5 text-xs leading-relaxed text-slate-400">
+            El resultado del período es distinto al saldo de tus cuentas.
+            Consulta Cuentas para ver tu dinero y tu deuda actuales.
+          </p>
+        </section>
+      </div>
+    </>
   );
 }

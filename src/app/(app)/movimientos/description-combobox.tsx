@@ -24,7 +24,13 @@ type Props = {
 
 // Campo de descripción con sugerencias de lo que más registras.
 // Consulta directo desde el navegador: es seguro porque RLS solo devuelve tus filas.
-export function DescriptionCombobox({ value, onChange, onPick, type, categoryName }: Props) {
+export function DescriptionCombobox({
+  value,
+  onChange,
+  onPick,
+  type,
+  categoryName,
+}: Props) {
   const [open, setOpen] = useState(false);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [highlighted, setHighlighted] = useState(-1);
@@ -36,11 +42,19 @@ export function DescriptionCombobox({ value, onChange, onPick, type, categoryNam
     const current = ++requestId.current;
     // Espera 200 ms sin teclear antes de consultar (debounce).
     const timer = setTimeout(async () => {
-      const { data } = await createClient().rpc("suggest_descriptions", { p_query: value.trim(), p_limit: 12 });
+      const { data } = await createClient().rpc("suggest_descriptions", {
+        p_query: value.trim(),
+        p_limit: 12,
+        p_type: type,
+      });
       // Ignora respuestas de consultas viejas que lleguen tarde.
       if (current !== requestId.current) return;
       const matches = ((data ?? []) as Suggestion[])
-        .filter((s) => s.type === type && s.description.toLowerCase() !== value.trim().toLowerCase())
+        .filter(
+          (s) =>
+            s.type === type &&
+            s.description.toLowerCase() !== value.trim().toLowerCase(),
+        )
         .slice(0, 6);
       setSuggestions(matches);
       setHighlighted(-1);
@@ -83,10 +97,18 @@ export function DescriptionCombobox({ value, onChange, onPick, type, categoryNam
         aria-expanded={visible}
         aria-controls={listId}
         aria-autocomplete="list"
-        aria-activedescendant={highlighted >= 0 ? `${listId}-${highlighted}` : undefined}
+        aria-activedescendant={
+          highlighted >= 0 ? `${listId}-${highlighted}` : undefined
+        }
         autoComplete="off"
         maxLength={140}
-        placeholder={type === "income" ? "Sueldo" : type === "transfer" ? "Pago de tarjeta" : "Almuerzo"}
+        placeholder={
+          type === "income"
+            ? "Sueldo"
+            : type === "transfer"
+              ? "Pago de tarjeta"
+              : "Almuerzo"
+        }
         value={value}
         onChange={(e) => {
           onChange(e.target.value);
@@ -117,12 +139,21 @@ export function DescriptionCombobox({ value, onChange, onPick, type, categoryNam
               className="flex cursor-pointer items-center justify-between gap-3 px-3 py-2.5 text-sm aria-selected:bg-emerald-50 hover:bg-zinc-50 dark:aria-selected:bg-emerald-950 dark:hover:bg-zinc-800"
             >
               <span className="min-w-0">
-                <span className="block truncate font-medium">{s.description}</span>
+                <span className="block truncate font-medium">
+                  {s.description}
+                </span>
                 <span className="block truncate text-xs text-zinc-500">
-                  {[categoryName(s.category_id), `${s.uses} ${s.uses === 1 ? "vez" : "veces"}`].filter(Boolean).join(" · ")}
+                  {[
+                    categoryName(s.category_id),
+                    `${s.uses} ${s.uses === 1 ? "vez" : "veces"}`,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
                 </span>
               </span>
-              <span className="shrink-0 tabular-nums text-zinc-600 dark:text-zinc-400">{formatCents(Number(s.amount_cents))}</span>
+              <span className="shrink-0 tabular-nums text-zinc-600 dark:text-zinc-400">
+                {formatCents(Number(s.amount_cents))}
+              </span>
             </li>
           ))}
         </ul>

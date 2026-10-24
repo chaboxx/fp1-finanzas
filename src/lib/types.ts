@@ -2,7 +2,8 @@ import { CATEGORY_PALETTE } from "@/lib/colors";
 
 export type AccountType = "cash" | "debit" | "credit" | "savings";
 export type CategoryKind = "expense" | "income" | "investment";
-export type TransactionType = "expense" | "income" | "transfer" | "invest" | "divest";
+export type TransactionType =
+  "expense" | "income" | "transfer" | "invest" | "divest";
 
 export const ACCOUNT_TYPE_LABELS: Record<AccountType, string> = {
   cash: "Efectivo",

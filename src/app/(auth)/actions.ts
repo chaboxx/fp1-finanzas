@@ -7,7 +7,9 @@ import { createClient } from "@/lib/supabase/server";
 
 export type AuthFormState = {
   error?: string;
-  fieldErrors?: Partial<Record<"email" | "password" | "confirmPassword", string>>;
+  fieldErrors?: Partial<
+    Record<"email" | "password" | "confirmPassword", string>
+  >;
   message?: string;
   email?: string; // para no vaciar el campo cuando hay error
 };
@@ -49,13 +51,19 @@ function authErrorMessage(code: string | undefined): string {
 }
 
 function fieldErrors(error: z.ZodError): AuthFormState["fieldErrors"] {
-  const flat = z.flattenError(error).fieldErrors as Record<string, string[] | undefined>;
+  const flat = z.flattenError(error).fieldErrors as Record<
+    string,
+    string[] | undefined
+  >;
   return Object.fromEntries(
     Object.entries(flat).map(([field, messages]) => [field, messages?.[0]]),
   );
 }
 
-export async function login(_prev: AuthFormState, formData: FormData): Promise<AuthFormState> {
+export async function login(
+  _prev: AuthFormState,
+  formData: FormData,
+): Promise<AuthFormState> {
   const parsed = loginSchema.safeParse(Object.fromEntries(formData));
   const submittedEmail = String(formData.get("email") ?? "");
   if (!parsed.success) {
@@ -71,7 +79,10 @@ export async function login(_prev: AuthFormState, formData: FormData): Promise<A
   redirect("/");
 }
 
-export async function signup(_prev: AuthFormState, formData: FormData): Promise<AuthFormState> {
+export async function signup(
+  _prev: AuthFormState,
+  formData: FormData,
+): Promise<AuthFormState> {
   const parsed = signupSchema.safeParse(Object.fromEntries(formData));
   const submittedEmail = String(formData.get("email") ?? "");
   if (!parsed.success) {

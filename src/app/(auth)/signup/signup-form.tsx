@@ -6,14 +6,20 @@ import { FormAlert, FormField, SubmitButton } from "@/components/form-field";
 import { signup, type AuthFormState } from "../actions";
 
 export function SignupForm() {
-  const [state, formAction, pending] = useActionState(signup, {} as AuthFormState);
+  const [state, formAction, pending] = useActionState(
+    signup,
+    {} as AuthFormState,
+  );
 
   if (state.message) {
     return (
       <div className="flex flex-col gap-4">
         <h1 className="text-xl font-semibold">Revisa tu correo</h1>
         <FormAlert tone="success">{state.message}</FormAlert>
-        <Link href="/login" className="text-center text-sm font-medium text-emerald-700 hover:underline dark:text-emerald-400">
+        <Link
+          href="/login"
+          className="text-center text-sm font-medium text-emerald-700 hover:underline dark:text-emerald-400"
+        >
           Volver a iniciar sesión
         </Link>
       </div>
@@ -58,7 +64,10 @@ export function SignupForm() {
 
       <p className="text-center text-sm text-zinc-600 dark:text-zinc-400">
         ¿Ya tienes cuenta?{" "}
-        <Link href="/login" className="font-medium text-emerald-700 hover:underline dark:text-emerald-400">
+        <Link
+          href="/login"
+          className="font-medium text-emerald-700 hover:underline dark:text-emerald-400"
+        >
           Inicia sesión
         </Link>
       </p>

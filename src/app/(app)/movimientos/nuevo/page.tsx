@@ -1,25 +1,45 @@
-import type { Metadata } from "next";
+import { RouteModal } from "@/components/form-modal";
 import { Suspense } from "react";
-import { PageHeader } from "@/components/ui";
+import { PageHeader, LoadingPanel } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
 import { getMovementFormOptions } from "@/lib/data";
 import { MovementForm } from "../movement-form";
-
-export const metadata: Metadata = { title: "Nuevo movimiento · Finanzas" };
-
-export default function NewMovementPage() {
+export default function NewMovementPage({
+  searchParams,
+}: PageProps<"/movimientos/nuevo">) {
   return (
     <>
-      <PageHeader title="Nuevo movimiento" />
-      <Suspense fallback={<div className="h-96 animate-pulse rounded-2xl bg-zinc-200 dark:bg-zinc-800" />}>
-        <NewMovement />
+      <PageHeader
+        title="Nuevo movimiento"
+        description="Un registro rápido para tener tus cuentas al día."
+      />
+      <Suspense fallback={<LoadingPanel />}>
+        <NewMovement searchParams={searchParams} />
       </Suspense>
     </>
   );
 }
-
-async function NewMovement() {
-  const { supabase, userId } = await requireUser();
-  const options = await getMovementFormOptions(supabase, userId);
-  return <MovementForm {...options} />;
+async function NewMovement({
+  searchParams,
+}: {
+  searchParams: PageProps<"/movimientos/nuevo">["searchParams"];
+}) {
+  const { supabase, userId } = await requireUser(),
+    params = await searchParams,
+    options = await getMovementFormOptions(supabase, userId);
+  const type =
+    params.tipo === "transfer" || params.tipo === "income"
+      ? params.tipo
+      : "expense";
+  return (
+    <RouteModal title="Nuevo movimiento" closeHref="/movimientos">
+      <MovementForm
+        {...options}
+        initialType={type}
+        initialAccount={
+          typeof params.cuenta === "string" ? params.cuenta : undefined
+        }
+      />
+    </RouteModal>
+  );
 }

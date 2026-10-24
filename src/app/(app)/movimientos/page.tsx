@@ -1,154 +1,294 @@
-import type { Metadata } from "next";
 import Link from "next/link";
+import { FormModal } from "@/components/form-modal";
+import { MovementForm } from "./movement-form";
 import { Suspense } from "react";
-import { Card } from "@/components/ui";
+import { PageHeader, Card, Badge, LoadingPanel } from "@/components/ui";
+import { StatCard } from "@/components/stat-card";
 import { requireUser } from "@/lib/auth";
-import { currentMonth, formatDayHeading, formatMonth, isMonth, monthRange, shiftMonth } from "@/lib/dates";
+import { fetchAll, generateDue, getCatalogs } from "@/lib/finance-data";
+import { resolvePeriod, summarize, values, type Params } from "@/lib/dashboard";
+import { todayISO, formatDayHeading } from "@/lib/dates";
 import { formatCents } from "@/lib/money";
-import type { TransactionType } from "@/lib/types";
+import { DashboardFilters } from "../_dashboard/filters";
 import { DeleteMovementButton } from "./delete-movement-button";
-
-export const metadata: Metadata = { title: "Movimientos · Finanzas" };
-
-export default function MovementsPage({ searchParams }: PageProps<"/movimientos">) {
+const labels = {
+  expense: "Gasto",
+  income: "Ingreso",
+  transfer: "Transferencia",
+  invest: "Aporte a inversión",
+  divest: "Rescate",
+};
+export default function MovementsPage({
+  searchParams,
+}: PageProps<"/movimientos">) {
   return (
     <>
-      <div className="mb-6 flex items-center justify-between gap-4">
-        <h1 className="text-2xl font-semibold">Movimientos</h1>
-        <Link
-          href="/movimientos/nuevo"
-          className="flex h-10 items-center rounded-lg bg-emerald-600 px-4 text-sm font-medium text-white transition hover:bg-emerald-700"
-        >
-          + Nuevo
-        </Link>
-      </div>
-      <Suspense fallback={<div className="h-96 animate-pulse rounded-2xl bg-zinc-200 dark:bg-zinc-800" />}>
-        <MonthMovements searchParams={searchParams} />
+      <PageHeader
+        title="Tu día a día, registrado"
+        description="Consulta, encuentra y corrige tus movimientos sin perder el contexto."
+        actions={
+          <Link href="/movimientos/recurrentes" className="btn btn-secondary">
+            Gestionar recurrentes →
+          </Link>
+        }
+      />
+      <Suspense fallback={<LoadingPanel />}>
+        <Movements searchParams={searchParams} />
       </Suspense>
     </>
   );
 }
-
-type Row = {
-  id: string;
-  type: TransactionType;
-  amount_cents: number;
-  occurred_on: string;
-  description: string | null;
-  account_id: string;
-  to_account_id: string | null;
-  category_id: string | null;
-};
-
-async function MonthMovements({ searchParams }: { searchParams: PageProps<"/movimientos">["searchParams"] }) {
-  // requireUser() va primero: espera al request real antes de leer el reloj (currentMonth).
-  const { supabase } = await requireUser();
-  const { mes } = await searchParams;
-  const month = isMonth(mes) ? mes : currentMonth();
-  const { from, to } = monthRange(month);
-
-  // Tres consultas simples y el "join" en memoria: con este volumen es más claro que
-  // un select anidado, y no depende de cómo PostgREST resuelva las FKs compuestas.
-  const [movements, accounts, categories] = await Promise.all([
-    supabase
-      .from("transactions")
-      .select("id, type, amount_cents, occurred_on, description, account_id, to_account_id, category_id")
-      .gte("occurred_on", from)
-      .lt("occurred_on", to)
-      .order("occurred_on", { ascending: false })
-      .order("created_at", { ascending: false }),
-    supabase.from("accounts").select("id, name"),
-    supabase.from("categories").select("id, name, color"),
+async function Movements({ searchParams }: { searchParams: Promise<Params> }) {
+  const { supabase, userId } = await requireUser(),
+    params = await searchParams,
+    today = todayISO(),
+    period = resolvePeriod(params, today);
+  await generateDue(supabase);
+  const [catalogs, allRows, investments] = await Promise.all([
+    getCatalogs(supabase, userId),
+    fetchAll((a, b) =>
+      supabase
+        .from("transactions")
+        .select("*")
+        .gte("occurred_on", period.from)
+        .lt("occurred_on", period.to)
+        .order("occurred_on", { ascending: false })
+        .order("created_at", { ascending: false })
+        .order("id")
+        .range(a, b),
+    ),
+    fetchAll((a, b) =>
+      supabase.from("investments").select("*").order("id").range(a, b),
+    ),
   ]);
-  if (movements.error) throw new Error("No se pudieron cargar los movimientos");
-
-  const accountName = new Map((accounts.data ?? []).map((a) => [a.id, a.name as string]));
-  const category = new Map((categories.data ?? []).map((c) => [c.id, c as { name: string; color: string | null }]));
-  const rows = (movements.data as Row[]).map((r) => ({ ...r, amount_cents: Number(r.amount_cents) }));
-
-  const income = rows.filter((r) => r.type === "income").reduce((s, r) => s + r.amount_cents, 0);
-  const expense = rows.filter((r) => r.type === "expense").reduce((s, r) => s + r.amount_cents, 0);
-
-  const byDay = Map.groupBy(rows, (r) => r.occurred_on);
-
+  const accountMap = new Map(catalogs.accounts.map((a) => [a.id, a])),
+    categoryMap = new Map(catalogs.categories.map((c) => [c.id, c])),
+    investmentMap = new Map(investments.map((i) => [i.id, i]));
+  const accountIds = values(params, "cuenta"),
+    categoryIds = values(params, "categoria"),
+    kind = String(params.tipo ?? ""),
+    search = String(params.buscar ?? "")
+      .trim()
+      .toLocaleLowerCase("es");
+  const rows = allRows.filter((r) => {
+    const category =
+      r.category_id ??
+      (r.investment_id
+        ? investmentMap.get(r.investment_id)?.category_id
+        : null);
+    return (
+      (!accountIds.length ||
+        accountIds.includes(r.account_id) ||
+        (r.to_account_id && accountIds.includes(r.to_account_id))) &&
+      (!categoryIds.length || (category && categoryIds.includes(category))) &&
+      (!kind ||
+        (kind === "outflow"
+          ? r.type === "expense" || r.type === "invest"
+          : r.type === kind)) &&
+      (!search ||
+        [
+          r.description,
+          category ? categoryMap.get(category)?.name : "",
+          r.investment_id ? investmentMap.get(r.investment_id)?.name : "",
+        ].some((v) => v?.toLocaleLowerCase("es").includes(search)))
+    );
+  });
+  const totals = summarize(rows.filter((r) => r.occurred_on <= today));
+  const filterParams = {
+    ...params,
+    metrica:
+      kind === "income"
+        ? "income"
+        : kind === "invest" || kind === "divest"
+          ? "invest"
+          : "outflow",
+  };
   return (
-    <div className="flex flex-col gap-4">
-      <nav className="flex items-center justify-between" aria-label="Mes">
-        <MonthLink month={shiftMonth(month, -1)} label="‹ Anterior" />
-        <h2 className="font-semibold">{formatMonth(month)}</h2>
-        {month < currentMonth() ? <MonthLink month={shiftMonth(month, 1)} label="Siguiente ›" /> : <span className="w-20" />}
-      </nav>
+    <>
+      <DashboardFilters
+        key={JSON.stringify(params)}
+        params={filterParams}
+        period={period}
+        {...catalogs}
+        basePath="/movimientos"
+      />
 
-      <div className="grid grid-cols-3 gap-2">
-        <Total label="Ingresos" cents={income} tone="text-emerald-600" />
-        <Total label="Gastos" cents={expense} tone="text-red-600" />
-        <Total label="Balance" cents={income - expense} tone={income - expense < 0 ? "text-red-600" : ""} />
+      <div className="mb-6 grid grid-cols-2 gap-3 xl:grid-cols-4">
+        <StatCard
+          tone="income"
+          label="Ingresos"
+          value={totals.income}
+          icon="arrow"
+        />
+        <StatCard
+          tone="expense"
+          label="Gastos"
+          value={totals.expense}
+          icon="wallet"
+        />
+        <StatCard
+          tone="investment"
+          label="Aportes a inversiones"
+          value={totals.invested}
+          icon="trend"
+        />
+        <StatCard
+          tone="balance"
+          label="Resultado"
+          value={totals.balance}
+          icon="list"
+          footnote="Incluye rescates; excluye transferencias y futuros"
+        />
       </div>
-
-      {rows.length === 0 ? (
-        <Card>
-          <p className="text-sm text-zinc-500">No hay movimientos en {formatMonth(month).toLowerCase()}.</p>
+      <form
+        action="/movimientos"
+        className="panel mb-6 flex flex-wrap items-end gap-3"
+      >
+        {Object.entries(params)
+          .filter(([k]) => !["tipo", "buscar"].includes(k))
+          .flatMap(([k, val]) =>
+            (Array.isArray(val) ? val : [val]).map((v, i) =>
+              v ? <input key={k + i} type="hidden" name={k} value={v} /> : null,
+            ),
+          )}
+        <label className="min-w-48 flex-1 text-xs font-medium text-slate-500">
+          Buscar
+          <input
+            className="field mt-1.5"
+            name="buscar"
+            defaultValue={String(params.buscar ?? "")}
+            placeholder="Descripción, categoría o inversión"
+          />
+        </label>
+        <label className="text-xs font-medium text-slate-500">
+          Tipo
+          <select name="tipo" className="field mt-1.5" defaultValue={kind}>
+            <option value="">Todos</option>
+            {Object.entries(labels).map(([v, l]) => (
+              <option key={v} value={v}>
+                {l}
+              </option>
+            ))}
+            <option value="outflow">Gastos + aportes</option>
+          </select>
+        </label>
+        <button className="btn btn-primary">Buscar</button>
+      </form>
+      {!rows.length ? (
+        <Card className="py-12 text-center">
+          <h2 className="font-semibold">Sin movimientos con estos filtros</h2>
+          <p className="muted mt-2">
+            Ajusta la búsqueda o registra tu primer movimiento.
+          </p>
+          <div className="mt-5">
+            <FormModal
+              title="Nuevo movimiento"
+              triggerLabel="Registrar movimiento"
+            >
+              <MovementForm {...catalogs} />
+            </FormModal>
+          </div>
         </Card>
       ) : (
-        [...byDay].map(([day, items]) => (
-          <section key={day}>
-            <h3 className="mb-2 px-1 text-sm font-medium text-zinc-500">{formatDayHeading(day)}</h3>
-            <Card className="p-0">
-              <ul className="divide-y divide-zinc-200 dark:divide-zinc-800">
-                {items.map((r) => {
-                  const cat = r.category_id ? category.get(r.category_id) : undefined;
-                  const subtitle =
-                    r.type === "transfer"
-                      ? `${accountName.get(r.account_id)} → ${r.to_account_id ? accountName.get(r.to_account_id) : ""}`
-                      : [cat?.name, accountName.get(r.account_id)].filter(Boolean).join(" · ");
-                  return (
-                    <li key={r.id} className="flex items-center gap-3 px-4 py-3">
-                      <span
-                        className="size-2.5 shrink-0 rounded-full"
-                        style={{ backgroundColor: r.type === "transfer" ? "#a1a1aa" : (cat?.color ?? "#a1a1aa") }}
-                      />
-                      <Link href={`/movimientos/${r.id}`} className="min-w-0 flex-1">
-                        <p className="truncate font-medium">{r.description || cat?.name || "Transferencia"}</p>
-                        <p className="truncate text-xs text-zinc-500">{subtitle}</p>
-                      </Link>
-                      <Amount type={r.type} cents={r.amount_cents} />
-                      <DeleteMovementButton id={r.id} />
-                    </li>
-                  );
-                })}
-              </ul>
-            </Card>
-          </section>
-        ))
+        <div className="space-y-6">
+          {[...Map.groupBy(rows, (r) => r.occurred_on)].map(([date, items]) => (
+            <section key={date}>
+              <h2 className="mb-3 flex items-center gap-3 px-1 text-xs font-medium text-slate-400">
+                {formatDayHeading(date)}
+                {date > today && (
+                  <Badge tone="muted">Futuro · fuera de ejecutado</Badge>
+                )}
+              </h2>
+              <Card className="p-0">
+                <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {items.map((r) => {
+                    const inv = r.investment_id
+                        ? investmentMap.get(r.investment_id)
+                        : undefined,
+                      cat = categoryMap.get(
+                        r.category_id ?? inv?.category_id ?? "",
+                      );
+                    const link =
+                      r.type === "invest" || r.type === "divest"
+                        ? "/inversiones?editar=" + r.id
+                        : "/movimientos/" + r.id;
+                    return (
+                      <li
+                        key={r.id}
+                        className="flex items-center gap-3 px-4 py-4 sm:px-6"
+                      >
+                        <span
+                          className={
+                            "flex size-10 shrink-0 items-center justify-center rounded-xl text-lg " +
+                            (r.type === "income" || r.type === "divest"
+                              ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30"
+                              : r.type === "invest"
+                                ? "bg-blue-50 text-blue-600 dark:bg-blue-950"
+                                : "bg-slate-50 text-slate-400 dark:bg-slate-800")
+                          }
+                        >
+                          {r.type === "transfer"
+                            ? "⇄"
+                            : r.type === "income" || r.type === "divest"
+                              ? "↙"
+                              : "↗"}
+                        </span>
+                        <Link href={link} className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-semibold">
+                            {r.description ||
+                              inv?.name ||
+                              cat?.name ||
+                              labels[r.type]}
+                          </p>
+                          <p className="mt-1 truncate text-[11px] text-slate-400">
+                            {labels[r.type]} ·{" "}
+                            {r.type === "transfer"
+                              ? accountMap.get(r.account_id)?.name +
+                                " → " +
+                                accountMap.get(r.to_account_id ?? "")?.name
+                              : [cat?.name, accountMap.get(r.account_id)?.name]
+                                  .filter(Boolean)
+                                  .join(" · ")}
+                            {cat && !cat.is_active
+                              ? " · categoría deshabilitada"
+                              : ""}
+                            {r.recurring_rule_id ? " · recurrente" : ""}
+                          </p>
+                        </Link>
+                        <strong
+                          className={
+                            "shrink-0 text-sm tabular-nums " +
+                            (r.type === "income" || r.type === "divest"
+                              ? "text-emerald-600"
+                              : "")
+                          }
+                        >
+                          {r.type === "income" || r.type === "divest"
+                            ? "+"
+                            : r.type === "transfer"
+                              ? ""
+                              : "−"}
+                          {formatCents(Number(r.amount_cents))}
+                        </strong>
+                        <DeleteMovementButton
+                          id={r.id}
+                          description={
+                            (r.description || labels[r.type]) +
+                            " · " +
+                            formatCents(Number(r.amount_cents)) +
+                            " · " +
+                            date
+                          }
+                        />
+                      </li>
+                    );
+                  })}
+                </ul>
+              </Card>
+            </section>
+          ))}
+        </div>
       )}
-    </div>
-  );
-}
-
-function MonthLink({ month, label }: { month: string; label: string }) {
-  return (
-    <Link href={`/movimientos?mes=${month}`} className="w-20 text-sm font-medium text-emerald-700 hover:underline last:text-right dark:text-emerald-400">
-      {label}
-    </Link>
-  );
-}
-
-function Total({ label, cents, tone }: { label: string; cents: number; tone: string }) {
-  return (
-    <Card className="px-3 py-3">
-      <p className="text-xs text-zinc-500">{label}</p>
-      <p className={`mt-0.5 truncate text-sm font-semibold tabular-nums sm:text-base ${tone}`}>{formatCents(cents)}</p>
-    </Card>
-  );
-}
-
-function Amount({ type, cents }: { type: TransactionType; cents: number }) {
-  const sign = type === "income" || type === "divest" ? "+" : type === "transfer" ? "" : "−";
-  const tone = type === "income" || type === "divest" ? "text-emerald-600" : type === "transfer" ? "text-zinc-500" : "";
-  return (
-    <span className={`shrink-0 font-semibold tabular-nums ${tone}`}>
-      {sign}
-      {formatCents(cents)}
-    </span>
+    </>
   );
 }

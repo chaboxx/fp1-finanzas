@@ -13,25 +13,41 @@ export type ActionState = {
 };
 
 export function formValues(formData: FormData): Record<string, string> {
-  return Object.fromEntries([...formData.entries()].filter(([k]) => !k.startsWith("$")).map(([k, v]) => [k, String(v)]));
+  return Object.fromEntries(
+    [...formData.entries()]
+      .filter(([k]) => !k.startsWith("$"))
+      .map(([k, v]) => [k, String(v)]),
+  );
 }
 
 export function fromZodError(error: z.ZodError): ActionState {
-  const flat = z.flattenError(error).fieldErrors as Record<string, string[] | undefined>;
+  const flat = z.flattenError(error).fieldErrors as Record<
+    string,
+    string[] | undefined
+  >;
   return {
-    fieldErrors: Object.fromEntries(Object.entries(flat).map(([k, v]) => [k, v?.[0]])),
+    fieldErrors: Object.fromEntries(
+      Object.entries(flat).map(([k, v]) => [k, v?.[0]]),
+    ),
   };
 }
 
 // Traduce errores de Postgres a mensajes para el usuario. Los triggers ya
 // lanzan mensajes en español con código check_violation (23514).
-export function fromDbError(error: PostgrestError, duplicateMessage = "Ya existe un registro con ese nombre"): ActionState {
+export function fromDbError(
+  error: PostgrestError,
+  duplicateMessage = "Ya existe un registro con ese nombre",
+): ActionState {
   switch (error.code) {
     case "23505":
       return { error: duplicateMessage };
     case "23514":
     case "P0001":
-      return { error: error.message.startsWith("new row") ? "Datos inválidos" : error.message };
+      return {
+        error: error.message.startsWith("new row")
+          ? "Datos inválidos"
+          : error.message,
+      };
     default:
       console.error("Error de base de datos", error);
       return { error: "No se pudo guardar. Intenta de nuevo." };

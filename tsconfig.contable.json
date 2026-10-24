@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "paths": {
+      "@/lib/auth": ["./tests/contable/dobles/auth.ts"],
+      "next/cache": ["./tests/contable/dobles/next-cache.ts"],
+      "next/navigation": ["./tests/contable/dobles/next-navigation.ts"],
+      "@/*": ["./src/*"]
+    }
+  }
+}

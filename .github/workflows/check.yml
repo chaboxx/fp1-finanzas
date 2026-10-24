@@ -1,0 +1,27 @@
+name: Verificar Finanzas
+on: [push, pull_request]
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: x
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npm run test:db
+      - run: npm run test:contable
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:ui
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: revision-navegador
+          path: test-results

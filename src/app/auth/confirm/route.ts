@@ -15,7 +15,10 @@ export async function GET(request: NextRequest) {
   let ok = false;
 
   if (tokenHash && type) {
-    const { error } = await supabase.auth.verifyOtp({ type, token_hash: tokenHash });
+    const { error } = await supabase.auth.verifyOtp({
+      type,
+      token_hash: tokenHash,
+    });
     ok = !error;
   } else if (code) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
