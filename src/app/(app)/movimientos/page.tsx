@@ -41,11 +41,12 @@ type Row = {
 };
 
 async function MonthMovements({ searchParams }: { searchParams: PageProps<"/movimientos">["searchParams"] }) {
+  // requireUser() va primero: espera al request real antes de leer el reloj (currentMonth).
+  const { supabase } = await requireUser();
   const { mes } = await searchParams;
   const month = isMonth(mes) ? mes : currentMonth();
   const { from, to } = monthRange(month);
 
-  const { supabase } = await requireUser();
   // Tres consultas simples y el "join" en memoria: con este volumen es más claro que
   // un select anidado, y no depende de cómo PostgREST resuelva las FKs compuestas.
   const [movements, accounts, categories] = await Promise.all([
