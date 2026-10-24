@@ -42,11 +42,12 @@ Next.js 16 + Supabase. El diseño completo está en [docs/DESIGN.md](docs/DESIGN
 src/
   app/
     (auth)/          Login, registro y sus Server Actions (login, signup, logout)
-    (app)/           Pantallas privadas: layout con navegación, cuentas, categorías
+    (app)/           Pantallas privadas: layout con navegación, movimientos, cuentas, categorías
     auth/confirm/    Destino del enlace de confirmación de email
   components/        Componentes reutilizables (formularios, tarjetas, botones)
   lib/auth.ts        requireUser(): verifica la sesión en el servidor
   lib/money.ts       Céntimos <-> soles (parseo y formato S/)
+  lib/dates.ts       Fechas en hora de Lima (hoy, meses, formato)
   lib/supabase/      Clientes de Supabase (browser, server, proxy)
   proxy.ts           Refresca la sesión y redirige a /login si no hay usuario
 supabase/

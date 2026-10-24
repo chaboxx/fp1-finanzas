@@ -67,7 +67,7 @@ Función `suggest_descriptions(query)`: autocompletado del formulario con la úl
 | 0 | Proyecto, esquema, RLS, pruebas del esquema | ✅ |
 | 1 | Registro, login, logout con Supabase Auth | ✅ |
 | 2 | Cuentas, categorías, cuenta por defecto | ✅ |
-| 3 | Formulario de movimientos con autocompletado | |
+| 3 | Formulario de movimientos con autocompletado | ✅ |
 | 4 | Dashboard: tarjetas, filtros, gráficos de líneas y de torta | |
 | 5 | Recurrentes (generador + cron) y presupuestos | |
 | 6 | Metas de ahorro, inversiones, PWA instalable | |

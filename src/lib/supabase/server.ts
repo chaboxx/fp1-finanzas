@@ -1,9 +1,14 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { connection } from "next/server";
 
 // Cliente para Server Components, Server Actions y Route Handlers.
 // Crear uno nuevo por request: nunca compartirlo entre usuarios.
 export async function createClient() {
+  // Con Partial Prefetching, Next prerenderiza incluso lo que lee cookies (el
+  // "App Shell" con datos de sesión). Supabase usa Date.now() para revisar si el
+  // token venció, así que todo lo que lo use debe esperar a un request real.
+  await connection();
   const cookieStore = await cookies();
 
   return createServerClient(

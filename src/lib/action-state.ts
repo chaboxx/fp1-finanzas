@@ -4,6 +4,7 @@ import { z } from "zod";
 // Estado que devuelven las Server Actions a los formularios (useActionState).
 export type ActionState = {
   ok?: boolean;
+  message?: string;
   error?: string;
   fieldErrors?: Record<string, string | undefined>;
   // Lo que el usuario escribió: React resetea el formulario tras cada envío,
