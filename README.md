@@ -1,36 +1,40 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Finanzas
 
-## Getting Started
+App personal de finanzas: gastos, ingresos, cuentas, presupuestos, metas de ahorro e inversiones.
+Next.js 16 + Supabase. El diseño completo está en [docs/DESIGN.md](docs/DESIGN.md).
 
-First, run the development server:
+## Puesta en marcha
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+1. Crea un proyecto gratis en [supabase.com](https://supabase.com) (región sugerida: São Paulo, la más cercana a Lima).
+2. En el proyecto, abre **SQL Editor**, pega el contenido de
+   `supabase/migrations/20261024000000_initial_schema.sql` y ejecútalo.
+3. Copia `.env.example` a `.env.local` y completa la URL y la *publishable key*
+   (**Project Settings → API Keys**).
+4. Instala y levanta la app:
+
+   ```bash
+   npm install
+   npm run dev
+   ```
+
+## Scripts
+
+| Comando | Qué hace |
+|---|---|
+| `npm run dev` | Servidor de desarrollo en http://localhost:3000 |
+| `npm run build` | Build de producción |
+| `npm run lint` | ESLint |
+| `npm run test:db` | Aplica las migraciones en un Postgres en memoria y prueba reglas, saldos y RLS |
+
+## Estructura
+
 ```
-
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+src/
+  app/               Rutas (App Router)
+  lib/supabase/      Clientes de Supabase (browser, server, proxy)
+  proxy.ts           Refresca la sesión y redirige a /login si no hay usuario
+supabase/
+  migrations/        Esquema SQL versionado
+  tests/             Pruebas del esquema con PGlite
+docs/DESIGN.md       Decisiones de diseño
+```
