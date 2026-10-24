@@ -58,7 +58,9 @@ Función `suggest_descriptions(query)`: autocompletado del formulario con la úl
 8. **Fecha por defecto = hoy en Lima**. `user_today()` usa la zona horaria del perfil, no la del servidor (UTC).
 9. **Aislamiento por usuario en tres capas**: RLS (`user_id = auth.uid()`), `user_id` con default `auth.uid()`, y FKs compuestas `(x_id, user_id)` que impiden referenciar filas de otro usuario.
 10. **Cuenta por defecto protegida** (migración 2): la primera cuenta creada pasa a ser la de defecto, no se puede deshabilitar y solo una cuenta activa puede serlo.
-11. **Recurrentes idempotentes**. Índice único `(recurring_rule_id, occurred_on)`: ejecutar el generador dos veces no duplica el sueldo.
+11. **Dashboard comparable**: se compara contra los mismos días transcurridos del período anterior (el 5 de octubre contra el 1–5 de septiembre, no contra septiembre completo). La inversión cuenta como egreso.
+12. **Colores de categorías accesibles** (migración 3): paleta de 8 colores validada para daltonismo en modo claro y oscuro; un gráfico nunca muestra más de 8 colores (el resto va a "Otras") y si dos categorías comparten color, la repetida toma uno libre en todos los gráficos.
+13. **Recurrentes idempotentes**. Índice único `(recurring_rule_id, occurred_on)`: ejecutar el generador dos veces no duplica el sueldo.
 
 ## Plan por sprints
 
@@ -68,6 +70,6 @@ Función `suggest_descriptions(query)`: autocompletado del formulario con la úl
 | 1 | Registro, login, logout con Supabase Auth | ✅ |
 | 2 | Cuentas, categorías, cuenta por defecto | ✅ |
 | 3 | Formulario de movimientos con autocompletado | ✅ |
-| 4 | Dashboard: tarjetas, filtros, gráficos de líneas y de torta | |
+| 4 | Dashboard: tarjetas, filtros, gráficos de líneas y de torta | ✅ |
 | 5 | Recurrentes (generador + cron) y presupuestos | |
 | 6 | Metas de ahorro, inversiones, PWA instalable | |

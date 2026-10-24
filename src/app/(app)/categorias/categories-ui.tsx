@@ -4,6 +4,7 @@ import { useActionState, useState } from "react";
 import { FormAlert, FormField, SubmitButton } from "@/components/form-field";
 import { Badge, Button, Card } from "@/components/ui";
 import type { ActionState } from "@/lib/action-state";
+import { CATEGORY_PALETTE } from "@/lib/colors";
 import { CATEGORY_COLORS, CATEGORY_KIND_LABELS, type Category, type CategoryKind } from "@/lib/types";
 import { createCategory, setCategoryActive, updateCategory } from "./actions";
 
@@ -157,11 +158,12 @@ function ColorPicker({ value, onChange }: { value: string; onChange: (color: str
       <legend className="mb-1.5 text-sm font-medium">Color</legend>
       <input type="hidden" name="color" value={value} />
       <div className="flex flex-wrap gap-2">
-        {CATEGORY_COLORS.map((c) => (
+        {CATEGORY_PALETTE.map(({ light: c, name }) => (
           <button
             key={c}
             type="button"
-            aria-label={`Color ${c}`}
+            aria-label={name}
+            title={name}
             aria-pressed={c === value}
             onClick={() => onChange(c)}
             className="size-8 rounded-full ring-offset-2 transition aria-pressed:ring-2 aria-pressed:ring-zinc-900 dark:ring-offset-zinc-900 dark:aria-pressed:ring-zinc-100"

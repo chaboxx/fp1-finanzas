@@ -1,3 +1,5 @@
+import { CATEGORY_PALETTE } from "@/lib/colors";
+
 export type AccountType = "cash" | "debit" | "credit" | "savings";
 export type CategoryKind = "expense" | "income" | "investment";
 export type TransactionType = "expense" | "income" | "transfer" | "invest" | "divest";
@@ -33,11 +35,8 @@ export type Category = {
   is_active: boolean;
 };
 
-// Paleta para categorías (legible en modo claro y oscuro).
-export const CATEGORY_COLORS = [
-  "#10b981", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6",
-  "#ec4899", "#14b8a6", "#f97316", "#64748b", "#84cc16",
-];
+// Colores elegibles para categorías: la paleta validada (ver lib/colors.ts).
+export const CATEGORY_COLORS: string[] = CATEGORY_PALETTE.map((c) => c.light);
 
 export type Account = {
   id: string;

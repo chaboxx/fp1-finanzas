@@ -34,6 +34,7 @@ Next.js 16 + Supabase. El diseño completo está en [docs/DESIGN.md](docs/DESIGN
 | `npm run dev` | Servidor de desarrollo en http://localhost:3000 |
 | `npm run build` | Build de producción |
 | `npm run lint` | ESLint |
+| `npm test` | Pruebas unitarias de los cálculos (dashboard, montos, colores) |
 | `npm run test:db` | Aplica las migraciones en un Postgres en memoria y prueba reglas, saldos y RLS |
 
 ## Estructura
@@ -42,12 +43,15 @@ Next.js 16 + Supabase. El diseño completo está en [docs/DESIGN.md](docs/DESIGN
 src/
   app/
     (auth)/          Login, registro y sus Server Actions (login, signup, logout)
-    (app)/           Pantallas privadas: layout con navegación, movimientos, cuentas, categorías
+    (app)/           Pantallas privadas: dashboard, movimientos, cuentas, categorías
+    (app)/_dashboard/ Filtros y gráficos del dashboard (Recharts)
     auth/confirm/    Destino del enlace de confirmación de email
   components/        Componentes reutilizables (formularios, tarjetas, botones)
   lib/auth.ts        requireUser(): verifica la sesión en el servidor
   lib/money.ts       Céntimos <-> soles (parseo y formato S/)
   lib/dates.ts       Fechas en hora de Lima (hoy, meses, formato)
+  lib/dashboard.ts   Cálculos del dashboard (funciones puras, con pruebas)
+  lib/colors.ts      Paleta de categorías validada para daltonismo
   lib/supabase/      Clientes de Supabase (browser, server, proxy)
   proxy.ts           Refresca la sesión y redirige a /login si no hay usuario
 supabase/
