@@ -3,6 +3,8 @@ import { NextResponse, type NextRequest } from "next/server";
 
 // Rutas accesibles sin sesión.
 const PUBLIC_PATHS = ["/login", "/signup", "/auth"];
+// Rutas que no tiene sentido ver si ya iniciaste sesión.
+const GUEST_ONLY_PATHS = ["/login", "/signup"];
 
 // Refresca el token de Supabase en cada navegación y protege las rutas privadas.
 export async function updateSession(request: NextRequest) {
@@ -39,10 +41,22 @@ export async function updateSession(request: NextRequest) {
   const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
 
   if (!isLoggedIn && !isPublic) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/login";
-    return NextResponse.redirect(url);
+    return redirectPreservingCookies(request, response, "/login");
+  }
+  if (isLoggedIn && GUEST_ONLY_PATHS.some((p) => pathname.startsWith(p))) {
+    return redirectPreservingCookies(request, response, "/");
   }
 
   return response;
+}
+
+// Un redirect es una respuesta nueva: hay que copiarle las cookies de sesión
+// que Supabase pudo haber refrescado, o el usuario perdería la sesión.
+function redirectPreservingCookies(request: NextRequest, response: NextResponse, pathname: string) {
+  const url = request.nextUrl.clone();
+  url.pathname = pathname;
+  url.search = "";
+  const redirect = NextResponse.redirect(url);
+  response.cookies.getAll().forEach((cookie) => redirect.cookies.set(cookie));
+  return redirect;
 }
