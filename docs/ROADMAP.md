@@ -1,12 +1,12 @@
 # Estado del proyecto
 
-Actualizado el 24 de octubre de 2026. Alcance funcional en [PLAN_MEJORA.md](PLAN_MEJORA.md); activación en [ACTIVAR_MVP.md](ACTIVAR_MVP.md).
+Actualizado el 25 de octubre de 2026. Alcance funcional en [PLAN_MEJORA.md](PLAN_MEJORA.md); activación en [ACTIVAR_MVP.md](ACTIVAR_MVP.md).
 
 ## Implementado en código
 
 | Área | Comportamiento |
 |---|---|
-| Navegación y diseño | Barra lateral en escritorio, navegación móvil con Más, contenido amplio, tipografía consistente, botones con área cómoda, estilos claros y oscuros. |
+| Navegación y diseño | Icono propio de moneda con flecha ascendente en la pestaña, accesos móviles, inicio de sesión y marca de la app; barra lateral en escritorio, navegación móvil con Más, contenido amplio, tipografía consistente, botones con área cómoda, estilos claros y oscuros. |
 | Resumen | Períodos rápidos, mes/año elegibles, rango personalizado, cuentas y categorías múltiples, contexto global separado del análisis por categoría. |
 | Gráficos | Día/Semana/Mes elegible, métrica, total/categorías, acumulado, comparación, guía y tooltip, rango completo sin barra inferior, leyenda interactiva, dona seleccionable y detalle por intervalo. |
 | Consistencia | Resultado incluye rescates; transferencias no son gastos; futuros separados del ejecutado; consultas paginadas para no truncar el historial. |
@@ -26,7 +26,7 @@ Actualizado el 24 de octubre de 2026. Alcance funcional en [PLAN_MEJORA.md](PLAN
 | Montos | Campos monetarios compartidos: solo dígitos, punto y hasta dos decimales; sin negativos ni separadores de miles. Al salir se muestran dos decimales. Validación idéntica en el servidor, conservando las reglas de cero según la operación. |
 | Formularios y espacio | Calendarios al pulsar el campo completo; asteriscos en campos obligatorios, opcionales sin textos de autorrelleno, acceso rápido global solo con + y cuentas en tarjetas separadas. |
 | Dólares | Cuentas e inversiones en soles o dólares; gastos, ingresos, aportes y transferencias en la moneda de la cuenta; selector Soles/Dólares para las tarjetas y el gráfico de Resumen, Movimientos y Cuentas (aportes siempre en ambas monedas); Inversiones con las dos monedas a la vez; Presupuesto y Métricas en soles. Sin tipo de cambio. Script para marcar como dólares cuentas antiguas. Plan y versiones en [PLAN_USD.md](PLAN_USD.md). |
-| Producción | Actualizada el 25 de octubre de 2026 con la corrección de filtros duplicados al buscar y navegar; despliegue AMKEKSSvzGwCdYzbcr8muTLyAddf listo y comprobado. Publicada en [finanzas-app-eight-lyart.vercel.app](https://finanzas-app-eight-lyart.vercel.app), proyecto chaboxxs-projects/finanzas-app. Archivos de credenciales y pruebas excluidos de la publicación. |
+| Producción | Actualizada el 25 de octubre de 2026 con icono propio en la pestaña y en la marca de la app; despliegue DomHha9948XAouHmUnizzcxsoVtU listo y comprobado. Publicada en [finanzas-app-eight-lyart.vercel.app](https://finanzas-app-eight-lyart.vercel.app), proyecto chaboxxs-projects/finanzas-app. Archivos de credenciales y pruebas excluidos de la publicación. |
 
 ## Activación pendiente fuera del repositorio
 

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Suspense } from "react";
 import { Icon, type IconName } from "@/components/icons";
+import { BrandMark } from "@/components/brand-mark";
 const items: { href: string; label: string; icon: IconName }[] = [
   { href: "/", label: "Resumen", icon: "home" },
   { href: "/movimientos", label: "Movimientos", icon: "list" },
@@ -35,9 +36,7 @@ function Nav({ desktop = false }: { desktop?: boolean }) {
     return (
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r border-slate-200 bg-white px-5 py-7 lg:flex dark:border-slate-800 dark:bg-slate-950">
         <Link href="/" className="mb-12 flex items-center gap-3 px-2">
-          <span className="flex size-10 items-center justify-center rounded-xl bg-blue-600 text-xl font-bold text-white">
-            f.
-          </span>
+          <BrandMark />
           <span className="text-xl font-semibold tracking-tight">
             finanzas<span className="text-blue-600">.</span>
           </span>

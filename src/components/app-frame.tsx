@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Sidebar, BottomNav } from "@/app/(app)/nav";
 import { Icon } from "./icons";
+import { BrandMark } from "./brand-mark";
 export function AppFrame({
   children,
   userMenu,
@@ -15,8 +16,14 @@ export function AppFrame({
       <Sidebar />
       <div className="lg:pl-60">
         <header className="flex min-h-20 items-center justify-between gap-3 border-b border-slate-200/70 px-5 sm:px-9 dark:border-slate-800">
-          <Link href="/" className="font-semibold lg:hidden">
-            finanzas<span className="text-blue-600">.</span>
+          <Link
+            href="/"
+            className="flex items-center gap-2 font-semibold lg:hidden"
+          >
+            <BrandMark size={32} />
+            <span>
+              finanzas<span className="text-blue-600">.</span>
+            </span>
           </Link>
           <span className="hidden text-xs text-slate-400 lg:block">
             FINANZAS PERSONALES <span className="mx-2">/</span> Mi espacio
