@@ -10,6 +10,91 @@ for (const mobile of [false, true]) {
       isMobile: mobile,
     });
 
+    test("buscar y volver desde otras pantallas no duplica ni reordena los filtros", async ({
+      page,
+    }) => {
+      const errors: string[] = [];
+      page.on("console", (message) => {
+        if (message.type() === "error") errors.push(message.text());
+      });
+      page.on("pageerror", (error) => errors.push(error.message));
+      await page.goto("/auth/revision?screen=movimientos");
+      await page
+        .getByRole("button", { name: "Nuevo movimiento", exact: true })
+        .click();
+      await page
+        .getByRole("dialog")
+        .getByRole("button", { name: /Cerrar/ })
+        .click();
+      await page.evaluate(() => {
+        document.documentElement.dataset.navigationDocument = "preserved";
+      });
+      const checkFilters = async () => {
+        await expect(
+          page.getByRole("button", { name: "Aplicar filtros", exact: true }),
+        ).toHaveCount(1);
+        await expect(
+          page.getByRole("form", { name: "Filtros por fechas" }),
+        ).toHaveCount(1);
+        await expect(
+          page.getByRole("form", { name: "Buscar movimientos" }),
+        ).toHaveCount(1);
+        expect(
+          await page
+            .getByRole("heading", { name: "Movimientos de ejemplo" })
+            .evaluate((heading) => {
+              const dates = document.querySelector(
+                'form[aria-label="Filtros por fechas"]',
+              );
+              const search = document.querySelector(
+                'form[aria-label="Buscar movimientos"]',
+              );
+              return Boolean(
+                dates &&
+                search &&
+                heading.compareDocumentPosition(dates) &
+                  Node.DOCUMENT_POSITION_FOLLOWING &&
+                dates.compareDocumentPosition(search) &
+                  Node.DOCUMENT_POSITION_FOLLOWING,
+              );
+            }),
+        ).toBe(true);
+      };
+      await checkFilters();
+      for (const word of ["Vivienda", "Comida", "Sueldo"]) {
+        const search = page.getByRole("form", { name: "Buscar movimientos" });
+        await search
+          .getByRole("textbox", { name: "Buscar", exact: true })
+          .fill(word);
+        await search
+          .getByRole("button", { name: "Buscar", exact: true })
+          .click();
+        await expect(page).toHaveURL(new RegExp("buscar=" + word));
+        await checkFilters();
+        for (const screen of ["inversiones", "metricas", "presupuesto"]) {
+          await page.getByRole("link", { name: screen, exact: true }).click();
+          await expect(page).toHaveURL(new RegExp("screen=" + screen));
+          await expect(
+            page.getByRole("form", { name: "Filtros por fechas" }),
+          ).toHaveCount(0);
+        }
+        await page
+          .getByRole("link", { name: "movimientos", exact: true })
+          .click();
+        await expect(page).toHaveURL(/screen=movimientos$/);
+        await checkFilters();
+      }
+      await expect(page.locator("html")).toHaveAttribute(
+        "data-navigation-document",
+        "preserved",
+      );
+      expect(errors).toEqual([]);
+      await page.screenshot({
+        path: `test-results/navegacion-sin-duplicados-${mobile ? "celular" : "escritorio"}.png`,
+        fullPage: true,
+      });
+    });
+
     test("los seleccionables se cierran al pulsar fuera y conservan sus selecciones", async ({
       page,
     }) => {

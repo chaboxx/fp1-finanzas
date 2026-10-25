@@ -70,7 +70,7 @@ Resumen, Movimientos e Inversiones muestran directamente Desde/Hasta y accesos r
 
 - Aplicación: https://finanzas-app-eight-lyart.vercel.app
 - Proyecto: chaboxxs-projects/finanzas-app.
-- Despliegue verificado: https://vercel.com/chaboxxs-projects/finanzas-app/D4BSmeKYYaT65eEdh3TBsREJMTyg
+- Despliegue verificado: https://vercel.com/chaboxxs-projects/finanzas-app/AMKEKSSvzGwCdYzbcr8muTLyAddf
 - Se configuraron NEXT_PUBLIC_SUPABASE_URL y NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY para Production y Preview. No se publicaron archivos .env ni contraseñas locales.
 - .vercelignore excluye las carpetas de pruebas, resultados, documentación y SQL de la raíz. Conserva src/lib/supabase, que sí necesita la aplicación.
 - Comprobación remota: /login y /signup responden 200; / y /cuentas redirigen al acceso sin sesión; /auth/revision responde 404; formulario de acceso visible y sin errores del navegador.

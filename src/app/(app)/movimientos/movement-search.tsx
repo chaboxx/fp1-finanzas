@@ -18,6 +18,7 @@ export function MovementSearch({
 }) {
   return (
     <Form
+      key={"movement-search-" + JSON.stringify(params)}
       action={action}
       scroll={false}
       aria-label="Buscar movimientos"

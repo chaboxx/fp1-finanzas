@@ -109,7 +109,7 @@ async function Movements({ searchParams }: { searchParams: Promise<Params> }) {
   return (
     <>
       <DashboardFilters
-        key={JSON.stringify(params)}
+        key={"filters-" + JSON.stringify(params)}
         params={filterParams}
         period={period}
         {...catalogs}
@@ -156,7 +156,7 @@ async function Movements({ searchParams }: { searchParams: Promise<Params> }) {
           </div>
         </section>
       ))}
-      <MovementSearch key={JSON.stringify(params)} params={params} />
+      <MovementSearch params={params} />
       {!rows.length ? (
         <Card className="py-12 text-center">
           <h2 className="font-semibold">Sin movimientos con estos filtros</h2>

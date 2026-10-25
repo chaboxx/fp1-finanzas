@@ -266,6 +266,8 @@ export default function ReviewPage({
       <div className="mb-6 flex flex-wrap gap-3 text-xs">
         {[
           "resumen",
+          "movimientos",
+          "metricas",
           "cuentas",
           "inversiones",
           "presupuesto",
@@ -300,13 +302,23 @@ async function Content({ searchParams }: { searchParams: Promise<Params> }) {
     return (
       <>
         <PageHeader title="Movimientos de ejemplo" />
-        <MovementSearch key={JSON.stringify(params)} params={params} action="/auth/revision" />
+        <DashboardFilters
+          key={"filters-" + JSON.stringify(params)}
+          params={params}
+          period={resolvePeriod(params, "2026-10-24")}
+          accounts={accounts}
+          categories={categories}
+          basePath="/auth/revision"
+        />
+        <MovementSearch params={params} action="/auth/revision" />
         <ul aria-label="Resultados de movimientos">
           {matching.map((row) => <li key={row.id}>{row.category_name}</li>)}
         </ul>
       </>
     );
   }
+  if (screen === "metricas")
+    return <PageHeader title="Métricas de ejemplo" />;
   if (screen === "cuentas")
     return (
       <>
