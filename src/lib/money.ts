@@ -1,12 +1,31 @@
-const formatter = new Intl.NumberFormat("es-PE", {
-  style: "currency",
-  currency: "PEN",
+export type Currency = "PEN" | "USD";
+
+export const CURRENCIES: Currency[] = ["PEN", "USD"];
+
+// "US$" en vez del "USD" de Intl: es como se escribe el dólar en Perú.
+export const CURRENCY_SYMBOL: Record<Currency, string> = {
+  PEN: "S/",
+  USD: "US$",
+};
+
+export const CURRENCY_LABEL: Record<Currency, string> = {
+  PEN: "Soles",
+  USD: "Dólares",
+};
+
+const number = new Intl.NumberFormat("es-PE", {
   minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
 });
 
-// 150050 => "S/ 1,500.50"
-export function formatCents(cents: number): string {
-  return formatter.format(cents / 100);
+// 150050 => "S/ 1,500.50"; en dólares => "US$ 1,500.50"
+export function formatCents(cents: number, currency: Currency = "PEN"): string {
+  return (
+    (cents < 0 ? "-" : "") +
+    CURRENCY_SYMBOL[currency] +
+    " " +
+    number.format(Math.abs(cents) / 100)
+  );
 }
 
 // Solo montos sin signo ni separadores de miles, con punto y hasta dos decimales.

@@ -83,7 +83,7 @@ const funcs = {
   save_budget_plan:
     "{ Args: { p_month: string; p_total: number; p_allocations: Json }; Returns: string }",
   save_investment_entry:
-    "{ Args: { p_operation: string; p_amount: number; p_request: string; p_investment?: string | null; p_category?: string | null; p_name?: string | null; p_platform?: string | null; p_account?: string | null; p_date?: string | null; p_description?: string | null; p_entry?: string | null; p_initial_capital?: number | null }; Returns: string }",
+    "{ Args: { p_operation: string; p_amount: number; p_request: string; p_investment?: string | null; p_category?: string | null; p_name?: string | null; p_platform?: string | null; p_account?: string | null; p_date?: string | null; p_description?: string | null; p_entry?: string | null; p_initial_capital?: number | null; p_currency?: 'PEN' | 'USD' }; Returns: string }",
   generate_recurring_transactions:
     "{ Args: { p_until?: string; p_user?: string }; Returns: number }",
   suggest_descriptions:

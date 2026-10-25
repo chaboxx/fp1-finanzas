@@ -19,6 +19,7 @@ export type Database = {
           is_active: boolean;
           created_at: string;
           in_emergency_fund: boolean;
+          currency: "PEN" | "USD";
         };
         Insert: {
           id?: string;
@@ -29,6 +30,7 @@ export type Database = {
           is_active?: boolean;
           created_at?: string;
           in_emergency_fund?: boolean;
+          currency?: "PEN" | "USD";
         };
         Update: {
           id?: string;
@@ -39,6 +41,7 @@ export type Database = {
           is_active?: boolean;
           created_at?: string;
           in_emergency_fund?: boolean;
+          currency?: "PEN" | "USD";
         };
         Relationships: [];
       };
@@ -255,6 +258,7 @@ export type Database = {
           initial_capital_cents: number | null;
           opened_on: string | null;
           request_id: string | null;
+          currency: "PEN" | "USD";
         };
         Insert: {
           id?: string;
@@ -267,6 +271,7 @@ export type Database = {
           initial_capital_cents?: number | null;
           opened_on?: string | null;
           request_id?: string | null;
+          currency?: "PEN" | "USD";
         };
         Update: {
           id?: string;
@@ -279,6 +284,7 @@ export type Database = {
           initial_capital_cents?: number | null;
           opened_on?: string | null;
           request_id?: string | null;
+          currency?: "PEN" | "USD";
         };
         Relationships: [];
       };
@@ -466,6 +472,7 @@ export type Database = {
           type: "cash" | "debit" | "credit" | "savings" | null;
           is_active: boolean | null;
           balance_cents: number | null;
+          currency: "PEN" | "USD" | null;
         };
         Relationships: [];
       };
@@ -517,6 +524,7 @@ export type Database = {
           category_kind: "expense" | "income" | "investment" | null;
           category_color: string | null;
           category_is_active: boolean | null;
+          currency: "PEN" | "USD" | null;
         };
         Relationships: [];
       };
@@ -541,6 +549,7 @@ export type Database = {
           expense_cents: number | null;
           invested_cents: number | null;
           divested_cents: number | null;
+          currency: "PEN" | "USD" | null;
         };
         Relationships: [];
       };
@@ -564,6 +573,7 @@ export type Database = {
           p_description?: string | null;
           p_entry?: string | null;
           p_initial_capital?: number | null;
+          p_currency?: "PEN" | "USD";
         };
         Returns: string;
       };
@@ -590,6 +600,7 @@ export type Database = {
     Enums: {
       account_type: "cash" | "debit" | "credit" | "savings";
       category_kind: "expense" | "income" | "investment";
+      currency_code: "PEN" | "USD";
       recurrence_frequency: "weekly" | "monthly" | "yearly";
       transaction_type: "expense" | "income" | "transfer" | "invest" | "divest";
     };

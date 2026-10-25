@@ -26,26 +26,31 @@ recalculado as (
   group by a.id
 ),
 
--- Por usuario: lo que hay en las cuentas vs. lo que debería haber según los movimientos.
+-- Por usuario y moneda: lo que hay en las cuentas vs. lo que debería haber según los
+-- movimientos. Soles y dólares se cuadran por separado: nunca se suman.
 conservacion as (
-  select u.user_id,
-         coalesce((select sum(b.balance_cents) from public.account_balances b where b.user_id = u.user_id), 0) as en_cuentas,
-         coalesce((select sum(initial_balance_cents) from public.accounts a where a.user_id = u.user_id), 0)
-       + coalesce((select sum(case when type in ('income', 'divest') then amount_cents
-                                   when type in ('expense', 'invest') then -amount_cents else 0 end)
-                   from public.transactions t where t.user_id = u.user_id and t.occurred_on <= (select d from hoy)), 0) as esperado
-  from (select distinct user_id from public.accounts) u
+  select u.user_id, u.currency,
+         coalesce((select sum(b.balance_cents) from public.account_balances b
+                   where b.user_id = u.user_id and b.currency = u.currency), 0) as en_cuentas,
+         coalesce((select sum(initial_balance_cents) from public.accounts a
+                   where a.user_id = u.user_id and a.currency = u.currency), 0)
+       + coalesce((select sum(case when t.type in ('income', 'divest') then t.amount_cents
+                                   when t.type in ('expense', 'invest') then -t.amount_cents else 0 end)
+                   from public.transactions t join public.accounts a on a.id = t.account_id
+                   where t.user_id = u.user_id and a.currency = u.currency
+                     and t.occurred_on <= (select d from hoy)), 0) as esperado
+  from (select distinct user_id, currency from public.accounts) u
 ),
 
 resumen_directo as (
-  select user_id, date_trunc('month', occurred_on)::date as month,
-         sum(amount_cents) filter (where type = 'income')  as income,
-         sum(amount_cents) filter (where type = 'expense') as expense,
-         sum(amount_cents) filter (where type = 'invest')  as invested,
-         sum(amount_cents) filter (where type = 'divest')  as divested
-  from public.transactions
-  where type <> 'transfer' and occurred_on <= (select d from hoy)
-  group by 1, 2
+  select t.user_id, date_trunc('month', t.occurred_on)::date as month, a.currency,
+         sum(t.amount_cents) filter (where t.type = 'income')  as income,
+         sum(t.amount_cents) filter (where t.type = 'expense') as expense,
+         sum(t.amount_cents) filter (where t.type = 'invest')  as invested,
+         sum(t.amount_cents) filter (where t.type = 'divest')  as divested
+  from public.transactions t join public.accounts a on a.id = t.account_id
+  where t.type <> 'transfer' and t.occurred_on <= (select d from hoy)
+  group by 1, 2, 3
 ),
 
 checks as (
@@ -53,8 +58,8 @@ checks as (
          (select count(*) from recalculado r join public.account_balances b on b.account_id = r.id where b.balance_cents <> r.saldo) as problemas,
          'cuentas con diferencia' as unidad
   union all
-  select 2, 'Dinero total por usuario = saldos iniciales + ingresos + rescates − gastos − aportes',
-         (select count(*) from conservacion where en_cuentas <> esperado), 'usuarios descuadrados'
+  select 2, 'Dinero total por usuario y moneda = saldos iniciales + ingresos + rescates − gastos − aportes',
+         (select count(*) from conservacion where en_cuentas <> esperado), 'monedas descuadradas'
   union all
   select 3, 'Montos mayores a cero',
          (select count(*) from public.transactions where amount_cents <= 0), 'movimientos'
@@ -84,15 +89,28 @@ checks as (
          (select count(*) from (select plan_id from public.budget_allocations group by plan_id having sum(percentage_bps) > 10000) x), 'presupuestos'
   union all
   select 9, 'Resumen mensual = suma directa de los movimientos',
-         (select count(*) from resumen_directo r full join public.monthly_summary m on m.user_id = r.user_id and m.month = r.month
+         (select count(*) from resumen_directo r full join public.monthly_summary m
+           on m.user_id = r.user_id and m.month = r.month and m.currency = r.currency
            where coalesce(r.income, 0) <> coalesce(m.income_cents, 0) or coalesce(r.expense, 0) <> coalesce(m.expense_cents, 0)
               or coalesce(r.invested, 0) <> coalesce(m.invested_cents, 0) or coalesce(r.divested, 0) <> coalesce(m.divested_cents, 0)), 'meses'
   union all
-  select 10, 'Presupuesto ejecutado = gastos + aportes de la categoría en el mes',
+  select 10, 'Presupuesto ejecutado = gastos + aportes en soles de la categoría en el mes',
          (select count(*) from public.budget_plan_progress p
            where p.spent_cents <> coalesce((select sum(m.amount_cents) from public.categorized_movements m
                where m.category_id = p.category_id and m.month = p.month and m.type in ('expense', 'invest')
-                 and m.occurred_on <= (select d from hoy)), 0)), 'categorías'
+                 and m.currency = 'PEN' and m.occurred_on <= (select d from hoy)), 0)), 'categorías'
+  union all
+  select 11, 'Transferencias, aportes y rescates en una sola moneda',
+         (select count(*) from public.transactions t
+            join public.accounts a on a.id = t.account_id
+            left join public.accounts d on d.id = t.to_account_id
+            left join public.investments i on i.id = t.investment_id
+           where d.currency <> a.currency or i.currency <> a.currency), 'movimientos'
+  union all
+  select 12, 'Recurrentes solo en cuentas en soles',
+         (select count(*) from public.recurring_rules r
+           where exists (select 1 from public.accounts a
+                         where a.id in (r.account_id, r.to_account_id) and a.currency <> 'PEN')), 'reglas'
 )
 select comprobacion, case when problemas = 0 then 'OK' else 'REVISAR' end as estado,
        case when problemas = 0 then '' else problemas || ' ' || unidad end as detalle

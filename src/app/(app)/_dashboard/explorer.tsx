@@ -17,7 +17,7 @@ import {
   type Metric,
 } from "@/lib/dashboard";
 import { withDistinctColors } from "@/lib/colors";
-import { formatCents } from "@/lib/money";
+import { CURRENCY_LABEL, formatCents, type Currency } from "@/lib/money";
 import { dateRangeChanges } from "@/lib/report-filters";
 export function ReportExplorer({
   rows,
@@ -26,6 +26,8 @@ export function ReportExplorer({
   params,
   basePath = "/",
   allowedMetrics,
+  currency = "PEN",
+  showCurrency = false,
 }: {
   rows: DashboardRow[];
   previous: DashboardRow[];
@@ -33,6 +35,8 @@ export function ReportExplorer({
   params: Params;
   basePath?: string;
   allowedMetrics?: Metric[];
+  currency?: Currency;
+  showCurrency?: boolean; // con cuentas en dólares hay un explorador por moneda
 }) {
   const router = useRouter(),
     [pending, startTransition] = useTransition();
@@ -73,7 +77,7 @@ export function ReportExplorer({
   function select(id: string) {
     if (id === OTHER_ID) {
       document
-        .getElementById("all-categories")
+        .getElementById("all-categories-" + currency)
         ?.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
     }
@@ -97,12 +101,21 @@ export function ReportExplorer({
     <div
       className={"space-y-6 transition " + (pending ? "opacity-60" : "")}
       aria-busy={pending}
+      role={showCurrency ? "region" : undefined}
+      aria-label={
+        showCurrency
+          ? "Análisis en " + CURRENCY_LABEL[currency].toLowerCase()
+          : undefined
+      }
     >
       <Card>
         <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="eyebrow mb-2">Explora tus números</p>
-            <h2 className="text-lg font-semibold">Evolución en el tiempo</h2>
+            <h2 className="text-lg font-semibold">
+              Evolución en el tiempo
+              {showCurrency && " · " + CURRENCY_LABEL[currency].toLowerCase()}
+            </h2>
             <p className="muted mt-1 text-xs">
               Importes ejecutados · {METRIC_LABELS[metric].toLowerCase()}
             </p>
@@ -189,7 +202,7 @@ export function ReportExplorer({
             Ver acumulado
           </label>
           <span className="ml-auto font-semibold text-slate-700 dark:text-slate-200">
-            Selección: {formatCents(total)}
+            Selección: {formatCents(total, currency)}
           </span>
         </div>
         <TrendChart
@@ -207,6 +220,7 @@ export function ReportExplorer({
           cumulative={cumulative}
           title={METRIC_LABELS[metric]}
           detailParams={detail.toString()}
+          currency={currency}
         />
         {compare && (
           <p className="mt-4 text-[11px] text-slate-400">
@@ -230,6 +244,7 @@ export function ReportExplorer({
               <p className="eyebrow mb-2">Distribución</p>
               <h2 className="font-semibold">
                 {METRIC_LABELS[metric]} por categoría
+                {showCurrency && " · " + CURRENCY_LABEL[currency].toLowerCase()}
               </h2>
             </div>
             <span className="rounded-lg bg-slate-50 px-2 py-1 text-[11px] text-slate-400 dark:bg-slate-800">
@@ -238,7 +253,12 @@ export function ReportExplorer({
           </div>
           {total ? (
             <>
-              <CategoryDonut slices={display} total={total} onSelect={select} />
+              <CategoryDonut
+                slices={display}
+                total={total}
+                onSelect={select}
+                currency={currency}
+              />
               <p className="mt-5 text-center text-xs text-slate-400">
                 Pulsa una porción para filtrar. Otras se desglosa en la lista.
               </p>
@@ -261,7 +281,10 @@ export function ReportExplorer({
               </button>
             )}
           </div>
-          <div id="all-categories" className="max-h-80 space-y-4 overflow-auto">
+          <div
+            id={"all-categories-" + currency}
+            className="max-h-80 space-y-4 overflow-auto"
+          >
             {slices.map((s) => (
               <button
                 disabled={pending}
@@ -277,7 +300,7 @@ export function ReportExplorer({
                     <span className="text-slate-400">(deshabilitada)</span>
                   )}
                   <strong className="ml-auto tabular-nums">
-                    {formatCents(s.cents)}
+                    {formatCents(s.cents, currency)}
                   </strong>
                   <span className="w-12 text-right text-slate-400">
                     {s.pct.toFixed(1)} %
@@ -302,6 +325,7 @@ export function ReportExplorer({
             <strong>
               {formatCents(
                 period.elapsedDays ? Math.round(total / period.elapsedDays) : 0,
+                currency,
               )}
             </strong>
           </p>

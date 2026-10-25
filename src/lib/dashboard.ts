@@ -1,5 +1,6 @@
 import { formatMonth, isMonth } from "@/lib/dates";
 import type { CategoryKind, TransactionType } from "@/lib/types";
+import type { Currency } from "@/lib/money";
 export type Params = Record<string, string | string[] | undefined>;
 export type PeriodKey =
   "hoy" | "7d" | "30d" | "mes" | "3m" | "6m" | "anio" | "rango";
@@ -33,6 +34,7 @@ export type DashboardRow = {
   category_name: string;
   category_color: string | null;
   category_is_active: boolean;
+  currency?: Currency; // la de la cuenta; ausente en filas de prueba = soles
 };
 export const OUTFLOW_TYPES: TransactionType[] = ["expense", "invest"];
 export function addDays(iso: string, days: number) {

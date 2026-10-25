@@ -2,6 +2,7 @@ import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "./database.types";
 import type { DashboardRow } from "./dashboard";
 import type { Account, Category } from "./types";
+import type { Currency } from "./money";
 export type FinanceClient = SupabaseClient<Database>;
 export type DbRow<T extends keyof Database["public"]["Tables"]> =
   Database["public"]["Tables"][T]["Row"];
@@ -33,21 +34,24 @@ export async function fetchAll<T>(
   }
   return result;
 }
+// Sin moneda devuelve ambas: quien muestre totales debe separarlas (nunca sumar soles con dólares).
 export async function getReportRows(
   db: FinanceClient,
   from: string,
   to: string,
+  currency?: Currency,
 ): Promise<DashboardRow[]> {
-  const rows = await fetchAll((a, b) =>
-    db
+  const rows = await fetchAll((a, b) => {
+    const query = db
       .from("categorized_movements")
       .select("*")
       .gte("occurred_on", from)
-      .lt("occurred_on", to)
+      .lt("occurred_on", to);
+    return (currency ? query.eq("currency", currency) : query)
       .order("occurred_on")
       .order("id")
-      .range(a, b),
-  );
+      .range(a, b);
+  });
   return rows.map((r) => ({
     id: r.id!,
     type: r.type!,
@@ -59,6 +63,7 @@ export async function getReportRows(
     category_is_active: r.category_is_active!,
     account_id: r.account_id!,
     category_kind: r.category_kind!,
+    currency: r.currency ?? "PEN",
   }));
 }
 export async function getCatalogs(db: FinanceClient, userId: string) {

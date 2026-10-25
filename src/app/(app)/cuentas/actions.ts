@@ -31,8 +31,11 @@ const amount = z.string().transform((v, ctx) => {
   return cents;
 });
 
+const currency = z.enum(["PEN", "USD"], { error: "Elige una moneda" });
+
 const createSchema = z.object({
   name,
+  currency: currency.default("PEN"),
   type: z.enum(["cash", "debit", "credit", "savings"], {
     error: "Elige un tipo",
   }),
@@ -42,6 +45,7 @@ const createSchema = z.object({
 const updateSchema = z.object({
   id: z.uuid(),
   name,
+  currency: currency.optional(),
   initialBalance: amount,
 });
 
@@ -62,6 +66,7 @@ export async function createAccount(
   const { error } = await supabase.from("accounts").insert({
     name: parsed.data.name,
     type: parsed.data.type,
+    currency: parsed.data.currency,
     initial_balance_cents: signedBalance(
       parsed.data.type,
       parsed.data.initialBalance,
@@ -94,6 +99,8 @@ export async function updateAccount(
     .from("accounts")
     .update({
       name: parsed.data.name,
+      // La base rechaza el cambio si la cuenta ya tiene movimientos.
+      ...(parsed.data.currency ? { currency: parsed.data.currency } : {}),
       initial_balance_cents: signedBalance(
         account.type,
         parsed.data.initialBalance,

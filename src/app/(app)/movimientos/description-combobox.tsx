@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { formatCents } from "@/lib/money";
+import { formatCents, type Currency } from "@/lib/money";
 import type { TransactionType } from "@/lib/types";
 
 export type Suggestion = {
@@ -20,6 +20,7 @@ type Props = {
   onPick: (suggestion: Suggestion) => void;
   type: TransactionType;
   categoryName: (id: string | null) => string | undefined;
+  currencyOf?: (accountId: string | null) => Currency | undefined;
 };
 
 // Campo de descripción con sugerencias de lo que más registras.
@@ -30,6 +31,7 @@ export function DescriptionCombobox({
   onPick,
   type,
   categoryName,
+  currencyOf,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
@@ -152,7 +154,10 @@ export function DescriptionCombobox({
                 </span>
               </span>
               <span className="shrink-0 tabular-nums text-zinc-600 dark:text-zinc-400">
-                {formatCents(Number(s.amount_cents))}
+                {formatCents(
+                  Number(s.amount_cents),
+                  currencyOf?.(s.account_id),
+                )}
               </span>
             </li>
           ))}

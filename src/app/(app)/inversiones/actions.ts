@@ -15,6 +15,7 @@ const uuid = z
   .pipe(z.uuid().nullable());
 const schema = z.object({
   operation: z.enum(["invest", "divest", "valuation", "opening"]),
+  currency: z.enum(["PEN", "USD"]).default("PEN"),
   requestId: z.uuid(),
   investmentId: uuid,
   categoryId: uuid,
@@ -69,6 +70,8 @@ export async function saveInvestment(
     p_description: m.description,
     p_entry: m.entryId,
     p_initial_capital: initial,
+    // Solo se usa al crear una posición nueva; una existente conserva su moneda.
+    p_currency: m.currency,
   });
   if (error) return fromDbError(error);
   refresh();

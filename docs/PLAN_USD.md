@@ -1,6 +1,6 @@
 # Plan: agregar dólares (USD)
 
-Estado: **propuesta, nada implementado.** Reemplaza la decisión "Solo soles" de `CLAUDE.md` cuando se implemente la V1.
+Estado: **V1 implementada** (migración `20261031000000_moneda_usd.sql`). Reemplazó la decisión "Solo soles" de `AGENTS.md`.
 
 ## Idea central
 
@@ -48,7 +48,8 @@ La moneda sigue guardada en la cuenta.
 5. **Recurrentes:** solo en cuentas en soles.
 6. **Informes:**
    - Cuentas: totales separados por moneda.
-   - Resumen y Movimientos: selector de moneda (soles por defecto). Tarjetas, gráficos y totales muestran una sola moneda.
+   - Resumen: un bloque de tarjetas y un análisis (gráficos) por cada moneda con cuentas, uno debajo del otro: se ve a la vez lo gastado en soles y en dólares.
+   - Movimientos: la lista muestra cada monto con su símbolo y hay un bloque de totales por moneda.
    - Inversiones: totales separados por moneda.
    - Presupuesto y Métricas: solo soles. Los gastos y aportes en dólares no cuentan en ellos.
 7. La base garantiza las reglas 1, 3, 4 y 5; la UI solo las facilita.
@@ -89,8 +90,8 @@ migración aplicada, porque todo queda en soles por defecto.
 | Cuentas | Moneda al crear (bloqueada si hay movimientos); saldo en su moneda; totales por moneda. |
 | Nuevo/editar movimiento | Selector Soles / Dólares que filtra las cuentas; símbolo del monto según la moneda. |
 | Transferencias | El destino solo lista cuentas de la moneda del origen. |
-| Movimientos | Selector de moneda; montos con su símbolo; totales de una moneda. |
-| Resumen | Selector de moneda en los filtros (en la URL, como los demás filtros). |
+| Movimientos | Montos con su símbolo; totales por moneda. |
+| Resumen | Tarjetas y gráficos por moneda, a la vez. Los controles del gráfico (día/semana/mes, métrica) se comparten. |
 | Inversiones | Moneda al crear la posición; montos con su símbolo; totales por moneda. |
 | Recurrentes | Solo ofrece cuentas en soles. |
 | Presupuesto, Métricas | Sin cambios visibles; siguen en soles. |

@@ -52,7 +52,8 @@ describe("Auditoría contable y detección de sabotajes", () => {
     await e.db.exec(`
       create or replace view public.account_balances with (security_invoker = true) as
       select a.id as account_id, a.user_id, a.name, a.type, a.is_active,
-        a.initial_balance_cents + coalesce(sum(case when t.type in ('income','divest') then t.amount_cents else -t.amount_cents end), 0) as balance_cents
+        a.initial_balance_cents + coalesce(sum(case when t.type in ('income','divest') then t.amount_cents else -t.amount_cents end), 0) as balance_cents,
+        a.currency
       from public.accounts a left join public.transactions t on t.account_id = a.id
       group by a.id;`);
     await assert.rejects(cuadrar(e.p, "saldos saboteados"), /saldo de la cuenta|conservación/);
@@ -63,12 +64,13 @@ describe("Auditoría contable y detección de sabotajes", () => {
   it("detecta un resumen mensual que cuenta las transferencias como gasto", async () => {
     await e.db.exec(`
       create or replace view public.monthly_summary with (security_invoker = true) as
-      select user_id, date_trunc('month', occurred_on)::date as month,
-        sum(amount_cents) filter (where type = 'income') as income_cents,
-        sum(amount_cents) filter (where type in ('expense','transfer')) as expense_cents,
-        sum(amount_cents) filter (where type = 'invest') as invested_cents,
-        sum(amount_cents) filter (where type = 'divest') as divested_cents
-      from public.transactions group by 1, 2;`);
+      select t.user_id, date_trunc('month', t.occurred_on)::date as month,
+        sum(t.amount_cents) filter (where t.type = 'income') as income_cents,
+        sum(t.amount_cents) filter (where t.type in ('expense','transfer')) as expense_cents,
+        sum(t.amount_cents) filter (where t.type = 'invest') as invested_cents,
+        sum(t.amount_cents) filter (where t.type = 'divest') as divested_cents,
+        a.currency
+      from public.transactions t join public.accounts a on a.id = t.account_id group by 1, 2, a.currency;`);
     await assert.rejects(cuadrar(e.p, "resumen saboteado"), /resumen de/);
     assert.equal((await auditar(e)).find((f) => f.comprobacion.startsWith("Resumen mensual"))!.estado, "REVISAR");
   });
@@ -94,6 +96,20 @@ describe("Auditoría contable y detección de sabotajes", () => {
       update public.budget_allocations set percentage_bps = 9000;
       set session_replication_role = origin;`);
     assert.equal((await auditar(e)).find((f) => f.comprobacion.startsWith("Presupuestos repartidos"))!.estado, "REVISAR");
+  });
+
+  it("detecta dinero que cruza de soles a dólares por fuera de la app", async () => {
+    // Pasar a dólares una cuenta con movimientos (saltándose el trigger) deja una
+    // transferencia entre monedas y un recurrente en dólares.
+    await e.db.exec(`
+      set session_replication_role = replica;
+      update public.accounts set currency = 'USD' where id = '${e.ahorro}';
+      update public.recurring_rules set account_id = '${e.ahorro}' where id = '${e.regla}';
+      set session_replication_role = origin;`);
+    const filas = await auditar(e);
+    assert.equal(filas.find((f) => f.comprobacion.startsWith("Transferencias, aportes y rescates"))!.estado, "REVISAR");
+    assert.equal(filas.find((f) => f.comprobacion.startsWith("Recurrentes solo en cuentas en soles"))!.estado, "REVISAR");
+    await assert.rejects(cuadrar(e.p, "monedas mezcladas"), /mezcla monedas|conservación/);
   });
 
   it("detecta un movimiento borrado o cambiado por fuera de la app", async () => {

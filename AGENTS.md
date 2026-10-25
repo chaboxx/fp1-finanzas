@@ -10,7 +10,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 # Finanzas: guía para agentes
 
-App de finanzas personales para 1–2 usuarios en Perú (soles, hora de Lima).
+App de finanzas personales para 1–2 usuarios en Perú (soles y dólares, hora de Lima).
 Next.js 16 (App Router, Cache Components) + Supabase (Postgres, Auth, RLS) + Tailwind 4 + Recharts.
 Toda la interfaz y los mensajes al usuario están en **español**.
 
@@ -51,7 +51,7 @@ src/
   lib/
     supabase/                 Clientes: server.ts, client.ts (navegador), proxy.ts
     auth.ts                   requireUser()
-    money.ts dates.ts         Céntimos <-> soles; fechas en hora de Lima
+    money.ts dates.ts         Céntimos <-> montos (S/ y US$); fechas en hora de Lima
     dashboard.ts              Cálculos puros del dashboard (+ dashboard.test.ts)
     metrics.ts                Métricas de avance: proyección, indicadores, comparaciones, rachas (+ metrics.test.ts)
     colors.ts                 Paleta de categorías validada para daltonismo
@@ -66,6 +66,7 @@ supabase/
 
 ### Dinero y fechas
 - **Montos siempre en céntimos (`bigint` / `number` entero).** Nunca `float` para dinero. Para convertir usa `parseToCents`, `formatCents` y `centsToInput` de `lib/money.ts`.
+- **Moneda (PEN/USD) es de la cuenta o de la inversión; nunca sumes soles con dólares.** Pasa la moneda a `formatCents(cents, currency)`. Todo total se calcula por moneda (las filas de `getReportRows` traen `currency`; pide `"PEN"` para Presupuesto y Métricas). No hay tipo de cambio. Detalle en [docs/PLAN_USD.md](docs/PLAN_USD.md).
 - **Las fechas de movimientos son días `YYYY-MM-DD` en hora de Lima.** Usa `todayISO()` y `currentMonth()` de `lib/dates.ts`, nunca `new Date().toISOString()` (eso es UTC y después de las 19:00 en Lima ya da "mañana").
 - Para formatear un día, usa mediodía UTC (`T12:00:00Z`) como hace `lib/dates.ts`, así ninguna zona horaria cambia el día.
 
@@ -121,7 +122,8 @@ supabase/
 - Presupuesto = **total previsto mensual definido por el usuario**, distribuido por porcentajes entre categorías de gastos e inversión. Comparar ejecución e ingreso real sin cambiar automáticamente la base al cobrar. Usa budget_plans y budget_allocations; los presupuestos fijos anteriores se conservan en budgets.
 - Los aportes a inversiones **cuentan como egreso** del mes y contra el presupuesto, pero se muestran separados del gasto.
 - Inversiones y Presupuestos son pestañas propias y obligatorias del primer MVP. Categorías de inversión simples, sin subcategorías.
-- Solo soles; conservar email/contraseña y la sesión estándar actual de Supabase, sin imponer 24 horas.
+- Soles y dólares **sin tipo de cambio**: la moneda es de la cuenta; Resumen, Movimientos, Cuentas e Inversiones muestran cada moneda por separado (también sus gráficos); Presupuesto y Métricas siguen en soles. Transferencias solo entre cuentas de la misma moneda; recurrentes solo en soles (en dólares no interesan). No agregar conversión ni tipos de cambio sin preguntar.
+- Conservar email/contraseña y la sesión estándar actual de Supabase, sin imponer 24 horas.
 - Filtros de informes con Desde/Hasta visibles y accesos rápidos; sin selector Período. Casillas Todas para limpiar cada selección.
 - Limpiar filtros es un enlace condicional para cuentas/categorías/tipo/búsqueda: conserva siempre las fechas o el acceso rápido elegido. Arrastrar en el gráfico aplica un rango global y actualiza Desde/Hasta. Sin barra inferior Brush ni controles de zoom local: se muestra el rango completo.
 - Los campos de fecha/mes usan DateInput para abrir el calendario al pulsar cualquier parte del campo. Campos obligatorios con RequiredMark y semántica required; opcionales sin asterisco ni etiquetas de autorrelleno. El acceso rápido global a movimientos solo muestra el icono +, conservando su nombre accesible.

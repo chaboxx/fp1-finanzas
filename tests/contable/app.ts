@@ -12,7 +12,7 @@ import { saveInvestment } from "@/app/(app)/inversiones/actions";
 import { saveBudget } from "@/app/(app)/presupuesto/actions";
 import { saveTargets } from "@/app/(app)/metricas/actions";
 import type { ActionState } from "@/lib/action-state";
-import { parseToCents } from "@/lib/money";
+import { parseToCents, type Currency } from "@/lib/money";
 import type { AccountType, CategoryKind, TransactionType } from "@/lib/types";
 import type { TestUser } from "./db";
 import { signIn, signOut } from "./dobles/auth";
@@ -34,7 +34,7 @@ export type Mov = {
 };
 
 export class Libro {
-  cuentas = new Map<string, { inicial: number; tipo: AccountType; activa: boolean }>();
+  cuentas = new Map<string, { inicial: number; tipo: AccountType; activa: boolean; moneda: Currency }>();
   categorias = new Map<string, { kind: CategoryKind; nombre: string; activa: boolean }>();
   inversiones = new Map<string, { categoria: string; capitalInicial: number }>();
   movimientos = new Map<string, Mov>(); // por id en la base
@@ -56,9 +56,16 @@ export class Libro {
     return s;
   }
 
-  totales(desde: string, hasta: string) {
+  // La moneda de un movimiento es la de su cuenta.
+  moneda(m: Mov): Currency {
+    return this.cuentas.get(m.account)!.moneda;
+  }
+
+  // Sin moneda suma todo (útil para contar); los informes siempre piden una moneda.
+  totales(desde: string, hasta: string, moneda?: Currency) {
     const t = { income: 0, expense: 0, invest: 0, divest: 0, transfer: 0 };
-    for (const m of this.movimientos.values()) if (m.date >= desde && m.date <= hasta) t[m.type] += m.cents;
+    for (const m of this.movimientos.values())
+      if (m.date >= desde && m.date <= hasta && (!moneda || this.moneda(m) === moneda)) t[m.type] += m.cents;
     return t;
   }
 
@@ -67,10 +74,11 @@ export class Libro {
   }
 
   // Egresos (gasto + aportes) por categoría en un rango.
-  egresosPorCategoria(desde: string, hasta: string) {
+  egresosPorCategoria(desde: string, hasta: string, moneda?: Currency) {
     const map = new Map<string, number>();
     for (const m of this.movimientos.values()) {
       if ((m.type !== "expense" && m.type !== "invest") || m.date < desde || m.date > hasta) continue;
+      if (moneda && this.moneda(m) !== moneda) continue;
       const c = this.categoriaEfectiva(m)!;
       map.set(c, (map.get(c) ?? 0) + m.cents);
     }
@@ -139,14 +147,18 @@ export class Persona {
 
   // ----- cuentas y categorías -----
 
-  async crearCuenta(nombre: string, tipo: AccountType, saldoInicial = "") {
-    await this.debeFuncionar(createAccount, { name: nombre, type: tipo, initialBalance: saldoInicial }, `cuenta ${nombre}`);
+  async crearCuenta(nombre: string, tipo: AccountType, saldoInicial = "", moneda: Currency = "PEN") {
+    await this.debeFuncionar(
+      createAccount,
+      { name: nombre, type: tipo, initialBalance: saldoInicial, currency: moneda },
+      `cuenta ${nombre}`,
+    );
     const [row] = await this.sql<{ id: string; initial_balance_cents: number }>(
       "select id, initial_balance_cents from accounts where name = $1",
       [nombre],
     );
     const cents = saldoInicial.trim() ? parseToCents(saldoInicial)! : 0;
-    this.libro.cuentas.set(row.id, { inicial: tipo === "credit" ? -cents : cents, tipo, activa: true });
+    this.libro.cuentas.set(row.id, { inicial: tipo === "credit" ? -cents : cents, tipo, activa: true, moneda });
     if (!this.libro.cuentaPorDefecto) this.libro.cuentaPorDefecto = row.id; // la primera es la de defecto
     return row.id;
   }
@@ -201,12 +213,14 @@ export class Persona {
     categoria?: string;
     descripcion?: string;
     requestId?: string;
+    moneda?: Currency; // por defecto, la de la cuenta (como hace el formulario)
   }) {
     const requestId = m.requestId ?? randomUUID();
     await this.debeFuncionar(
       saveMovement,
       {
         type: m.tipo,
+        currency: m.moneda ?? this.libro.cuentas.get(m.cuenta || this.libro.cuentaPorDefecto!)!.moneda,
         amount: m.monto,
         description: m.descripcion ?? "",
         categoryId: m.categoria ?? "",
@@ -246,6 +260,7 @@ export class Persona {
       {
         id,
         type: nuevo.type,
+        currency: this.libro.moneda(nuevo as Mov),
         amount: (nuevo.cents / 100).toFixed(2),
         description: "editado",
         categoryId: nuevo.category ?? "",
@@ -336,12 +351,13 @@ export class Persona {
 
   // ----- inversiones -----
 
-  async invertir(op: { operacion: "invest" | "divest" | "valuation" | "opening"; monto: string; categoria?: string; inversion?: string; nombre?: string; cuenta?: string; fecha?: string; capitalInicial?: string }) {
+  async invertir(op: { operacion: "invest" | "divest" | "valuation" | "opening"; monto: string; categoria?: string; inversion?: string; nombre?: string; cuenta?: string; fecha?: string; capitalInicial?: string; moneda?: Currency }) {
     const requestId = randomUUID();
     await this.debeFuncionar(
       saveInvestment,
       {
         operation: op.operacion,
+        currency: op.moneda ?? "PEN",
         requestId,
         investmentId: op.inversion ?? "",
         categoryId: op.categoria ?? "",

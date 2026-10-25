@@ -9,7 +9,7 @@ La revisión del 2026-10-24 define el MVP actualizado en [PLAN_MEJORA.md](PLAN_M
 
 - Uso personal: máximo 2 usuarios, baja transaccionalidad (decenas de movimientos al día como mucho).
 - Accesible desde cualquier dispositivo: web responsive, luego PWA instalable.
-- Moneda: soles (PEN). Zona horaria: `America/Lima` (UTC-5, sin horario de verano).
+- Monedas: soles (PEN) y dólares (USD), cada cuenta en una sola moneda y sin tipo de cambio. Zona horaria: `America/Lima` (UTC-5, sin horario de verano).
 - Registro abierto sin invitaciones (solo el dueño conoce la URL).
 - Catálogos por usuario: categorías propias y típicas predeterminadas; cada usuario mantiene su copia editable y desactivable.
 
@@ -97,6 +97,7 @@ El patrón de selección está documentado en el [ejemplo oficial de Recharts](h
 12. **Cálculos como funciones puras.** `src/lib/dashboard.ts` no conoce Supabase ni React: recibe filas y devuelve números. Se prueba sin base de datos ni navegador.
 13. **Colores accesibles** (migración 3): paleta de 8 colores validada para daltonismo en modo claro y oscuro. Un gráfico nunca muestra más de 8 colores (el resto va a "Otras"); si dos categorías comparten color, la repetida toma uno libre, igual en todos los gráficos. Todo gráfico va con una tabla de valores.
 14. **Recurrentes idempotentes.** Índice único `(recurring_rule_id, occurred_on)`: ejecutar el generador dos veces no duplica el sueldo.
+16. **La moneda es de la cuenta y nunca se suman soles con dólares** (decisión del usuario, [PLAN_USD.md](PLAN_USD.md)). Sin tipo de cambio: la persona convierte fuera de la app. Por eso cada total dice su moneda: Resumen, Movimientos, Cuentas e Inversiones muestran un bloque por moneda; Presupuesto y Métricas siguen en soles. El selector Soles/Dólares del formulario solo filtra las cuentas: la moneda sigue guardada en la cuenta, y una cuenta con historial no cambia de moneda. Transferencias entre monedas y recurrentes en dólares quedan fuera a propósito.
 15. **Consultas simples sobre consultas ingeniosas.** La lista de movimientos hace tres consultas y las une en memoria, en vez de un `select` anidado. Con este volumen cuesta lo mismo y se lee mejor.
 
 ## Decisiones descartadas
@@ -107,5 +108,7 @@ El patrón de selección está documentado en el [ejemplo oficial de Recharts](h
 | Registro con código de invitación | Complejidad innecesaria para 2 usuarios. Alternativa recomendada: desactivar el registro en Supabase después de crear las cuentas. |
 | Categorías por defecto (decisión anterior, reemplazada) | La revisión actual pide categorías típicas y propias. No sobrescribir las personalizaciones existentes. |
 | Presupuesto como % del ingreso (decisión anterior, reemplazada) | Ahora se define un total previsto mensual y se reparte por porcentajes; el ingreso real sirve de comparación, sin cambiar esa base. |
+| Tipo de cambio por movimiento para tener un único total en soles | Obliga a escribir el tipo de cambio en cada movimiento y mantener una tabla de tipos. Precisión que el usuario no necesita. |
+| Moneda por movimiento (una cuenta en soles acepta un gasto en dólares) | La cuenta tendría saldo mixto ("S/ 500 + US$ 20"): el saldo deja de ser un número. |
 | Neon + Drizzle | Se eligió Supabase por traer Auth + RLS integrados. Costo: el plan gratis pausa tras 7 días sin uso (se resuelve con el cron diario del Sprint 5). |
 | App nativa (React Native / Flutter) | Una web responsive y luego PWA cubre celular y PC con un solo código y sin tiendas de apps. |

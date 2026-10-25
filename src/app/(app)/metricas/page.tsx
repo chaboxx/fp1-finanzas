@@ -51,9 +51,10 @@ async function Metrics({ searchParams }: { searchParams: PageProps<"/metricas">[
   ]);
   if (targetsCheck.error || accountsCheck.error) return <MigrationNotice />;
 
-  const [rows, recurringRows, rules, budget, summary, balances, accounts, targetRows] = await Promise.all([
+  const [rows, recurringRows, rules, budget, summary, balances, allAccounts, targetRows] = await Promise.all([
     // Mes evaluado + 3 meses anteriores (para comparar).
-    getReportRows(supabase, addMonths(ctx.from, -3), ctx.to),
+    // Métricas, metas y presupuesto están en soles: los dólares se ven en Resumen.
+    getReportRows(supabase, addMonths(ctx.from, -3), ctx.to, "PEN"),
     fetchAll((a, b) =>
       supabase
         .from("transactions")
@@ -73,14 +74,16 @@ async function Metrics({ searchParams }: { searchParams: PageProps<"/metricas">[
         .range(a, b),
     ),
     getBudgetData(supabase, month),
-    supabase.from("monthly_summary").select("*").gte("month", addMonths(ctx.from, -12)).lte("month", ctx.from),
+    supabase.from("monthly_summary").select("*").eq("currency", "PEN").gte("month", addMonths(ctx.from, -12)).lte("month", ctx.from),
     fetchAll((a, b) => supabase.from("account_balances").select("account_id, balance_cents").order("account_id").range(a, b)),
     fetchAll((a, b) =>
-      supabase.from("accounts").select("id, name, type, is_active, in_emergency_fund").order("created_at").order("id").range(a, b),
+      supabase.from("accounts").select("id, name, type, is_active, in_emergency_fund, currency").order("created_at").order("id").range(a, b),
     ),
     fetchAll((a, b) => supabase.from("financial_targets").select("*").order("effective_month").range(a, b)),
   ]);
   if (summary.error) throw new Error("No se pudo cargar el historial mensual");
+  const accounts = allAccounts.filter((a) => a.currency === "PEN");
+  const hasUsd = allAccounts.length > accounts.length;
 
   const targets = targetsFor(month, targetRows);
   const monthRows = rows.filter((r) => r.occurred_on >= ctx.from && r.occurred_on < ctx.to);
@@ -113,6 +116,12 @@ async function Metrics({ searchParams }: { searchParams: PageProps<"/metricas">[
   const investmentStreak = streak(results, "investmentMet", currentMonth());
 
   return (
+    <>
+    {hasUsd && (
+      <p className="mb-4 text-xs text-slate-400">
+        Las métricas, metas y el fondo de emergencia se calculan en soles. Tus movimientos en dólares están en Resumen y Movimientos.
+      </p>
+    )}
     <MetricsView
       month={month}
       ctx={ctx}
@@ -129,6 +138,7 @@ async function Metrics({ searchParams }: { searchParams: PageProps<"/metricas">[
       accounts={accounts}
       currentMonth={currentMonth()}
     />
+    </>
   );
 }
 

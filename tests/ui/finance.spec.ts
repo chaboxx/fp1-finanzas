@@ -1,4 +1,8 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
+
+// La revisión muestra un análisis por moneda; las pruebas del gráfico usan el de soles.
+const soles = (page: Page) =>
+  page.getByRole("region", { name: "Análisis en soles" });
 
 test("los montos bloquean texto, negativos y decimales extra sin alterar el valor", async ({
   page,
@@ -90,6 +94,9 @@ test("los campos de fecha y mes abren el calendario al pulsar el cuerpo del camp
     };
   });
   await page.goto("/auth/revision");
+  // Con dos análisis (soles y dólares) la página tarda más en hidratarse: los
+  // gráficos solo se dibujan en el cliente, así que verlos garantiza los eventos.
+  await expect(page.locator(".recharts-line").first()).toBeVisible();
   for (const label of ["Desde", "Hasta"]) {
     const input = page.getByRole("textbox", { name: label, exact: true });
     await input.click({ position: { x: 24, y: 20 } });
@@ -205,7 +212,7 @@ test("seleccionar fechas en el gráfico actualiza el rango global, en ambos sent
     [4, 10],
     [10, 4],
   ]) {
-    const chart = page.getByRole("img", { name: /Gastos por día/ });
+    const chart = soles(page).getByRole("img", { name: /Gastos por día/ });
     await expect(chart.locator(".recharts-line").first()).toBeVisible();
     await chart.scrollIntoViewIfNeeded();
     const bounds = await chart.boundingBox();
@@ -252,7 +259,7 @@ test("los gráficos muestran el rango completo sin barra inferior ni controles d
   page,
 }) => {
   await page.goto("/auth/revision");
-  const chart = page.getByRole("img", { name: /Gastos por día/ });
+  const chart = soles(page).getByRole("img", { name: /Gastos por día/ });
   await expect(chart.locator(".recharts-line").first()).toBeVisible();
   await expect(page.locator(".recharts-brush")).toHaveCount(0);
   await expect(
@@ -402,35 +409,39 @@ test("resumen: agrupación, leyenda, filtro y regreso mantienen su contexto", as
   await expect(
     page.getByRole("heading", { name: "Tu dinero, con claridad" }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Semana", exact: true }).click();
+  await soles(page)
+    .getByRole("button", { name: "Semana", exact: true })
+    .click();
   await expect(page).toHaveURL(/agrupacion=week/);
   await expect(
-    page.getByRole("button", { name: "Semana", exact: true }),
+    soles(page).getByRole("button", { name: "Semana", exact: true }),
   ).toHaveAttribute("aria-pressed", "true");
-  await page.getByRole("button", { name: "Día", exact: true }).click();
+  await soles(page).getByRole("button", { name: "Día", exact: true }).click();
   await expect(page).toHaveURL(/agrupacion=day/);
-  await page
+  await soles(page)
     .getByRole("button", { name: "Por categoría", exact: true })
     .click();
-  await expect(page.getByLabel("Leyenda interactiva")).toBeVisible();
-  const legend = page
+  await expect(soles(page).getByLabel("Leyenda interactiva")).toBeVisible();
+  const legend = soles(page)
     .getByLabel("Leyenda interactiva")
     .getByRole("button", { name: "Comida", exact: true });
   await legend.click();
   await expect(legend).toHaveAttribute("aria-pressed", "false");
   await legend.click();
   await expect(legend).toHaveAttribute("aria-pressed", "true");
-  await page.getByRole("button", { name: /Comida.*%/ }).click();
+  await soles(page)
+    .getByRole("button", { name: /Comida.*%/ })
+    .click();
   await expect(page).toHaveURL(/categoria=/);
   await expect(
-    page.locator("span").getByText("Ingresos", { exact: true }),
+    page.locator("span").getByText("Ingresos", { exact: true }).first(),
   ).toBeVisible();
   await page.goBack();
   await expect(page).not.toHaveURL(/categoria=/);
-  await page
+  await soles(page)
     .getByText("Ver valores y movimientos por intervalo", { exact: true })
     .click();
-  const table = page.getByRole("table");
+  const table = soles(page).getByRole("table");
   await expect(table.getByRole("row")).toHaveCount(25);
   await expect(
     table.getByRole("link", { name: "Ver movimientos →" }).first(),

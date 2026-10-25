@@ -22,7 +22,7 @@ import {
   type TrendPoint,
   addDays,
 } from "@/lib/dashboard";
-import { formatCents } from "@/lib/money";
+import { CURRENCY_SYMBOL, formatCents, type Currency } from "@/lib/money";
 import { useIsDark } from "@/lib/theme";
 import { rangeFromTrend } from "@/lib/report-filters";
 function useDark() {
@@ -46,8 +46,9 @@ function useSmall() {
     () => false,
   );
 }
-const axisMoney = (cents: number) =>
-  "S/ " +
+const axisMoney = (cents: number, currency: Currency) =>
+  CURRENCY_SYMBOL[currency] +
+  " " +
   new Intl.NumberFormat("es-PE", {
     notation: "compact",
     maximumFractionDigits: 1,
@@ -71,6 +72,7 @@ export function TrendChart({
   detailParams = "",
   disableDetail = false,
   onRangeSelect,
+  currency = "PEN",
 }: {
   data: TrendPoint[];
   series: Series[];
@@ -82,6 +84,7 @@ export function TrendChart({
   detailParams?: string;
   disableDetail?: boolean;
   onRangeSelect?: (from: string, to: string) => void;
+  currency?: Currency;
 }) {
   const dark = useDark(),
     ready = useClient(),
@@ -254,7 +257,7 @@ export function TrendChart({
                 dy={10}
               />
               <YAxis
-                tickFormatter={axisMoney}
+                tickFormatter={(v) => axisMoney(v, currency)}
                 tick={{ fontSize: 11, fill: tooltipColor }}
                 tickLine={false}
                 axisLine={false}
@@ -297,7 +300,7 @@ export function TrendChart({
                           <span style={{ color: p.color }}>●</span>
                           <span className="text-slate-500">{p.name}</span>
                           <strong className="ml-auto tabular-nums">
-                            {formatCents(Number(p.value))}
+                            {formatCents(Number(p.value), currency)}
                           </strong>
                         </p>
                       ))}
@@ -416,12 +419,12 @@ export function TrendChart({
                       : ""}
                   </td>
                   <td className="text-right font-medium tabular-nums">
-                    {formatCents(p.total)}
+                    {formatCents(p.total, currency)}
                   </td>
                   {comparison && (
                     <td className="text-right text-slate-400 tabular-nums">
                       {typeof p.previous === "number"
-                        ? formatCents(p.previous)
+                        ? formatCents(p.previous, currency)
                         : "—"}
                     </td>
                   )}
@@ -448,10 +451,12 @@ export function CategoryDonut({
   slices,
   total,
   onSelect,
+  currency = "PEN",
 }: {
   slices: CategorySlice[];
   total: number;
   onSelect?: (id: string) => void;
+  currency?: Currency;
 }) {
   const dark = useDark(),
     ready = useClient();
@@ -491,7 +496,7 @@ export function CategoryDonut({
                   <div className="rounded-xl border border-slate-200 bg-white p-3 text-xs shadow-xl dark:bg-slate-900">
                     <strong>{String(payload[0].name)}</strong>
                     <p className="mt-1">
-                      {formatCents(Number(payload[0].value))} ·{" "}
+                      {formatCents(Number(payload[0].value), currency)} ·{" "}
                       {((Number(payload[0].value) / total) * 100).toFixed(1)} %
                     </p>
                   </div>
@@ -505,7 +510,9 @@ export function CategoryDonut({
         <span className="mb-1 text-[11px] text-slate-400">
           TOTAL SELECCIONADO
         </span>
-        <strong className="text-xl tabular-nums">{formatCents(total)}</strong>
+        <strong className="text-xl tabular-nums">
+          {formatCents(total, currency)}
+        </strong>
       </div>
     </div>
   );

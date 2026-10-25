@@ -1,6 +1,6 @@
 import { Card } from "./ui";
 import { Icon, type IconName } from "./icons";
-import { formatCents } from "@/lib/money";
+import { formatCents, type Currency } from "@/lib/money";
 type Tone = "neutral" | "income" | "expense" | "investment" | "balance";
 const tones: Record<Tone, { panel: string; icon: string; value: string }> = {
   neutral: {
@@ -36,6 +36,7 @@ const tones: Record<Tone, { panel: string; icon: string; value: string }> = {
 export function StatCard({
   label,
   value,
+  currency = "PEN",
   icon = "wallet",
   delta,
   footnote,
@@ -44,6 +45,7 @@ export function StatCard({
 }: {
   label: string;
   value: number;
+  currency?: Currency;
   icon?: IconName;
   delta?: number | null;
   footnote?: string;
@@ -51,6 +53,17 @@ export function StatCard({
   tone?: Tone;
 }) {
   const style = tones[tone ?? (emphasis ? "balance" : "neutral")];
+  const text = formatCents(value, currency);
+  // "US$" y el signo alargan el monto: se achica en vez de partirse en dos líneas.
+  const width = text.length + (currency === "USD" ? 1 : 0);
+  const size =
+    width > 14
+      ? " text-lg lg:text-xl"
+      : width > 11
+        ? " text-xl lg:text-2xl"
+        : width > 9
+          ? " text-[22px] lg:text-[28px]"
+          : "";
   return (
     <Card className={style.panel}>
       <div className="mb-4 flex items-center justify-between gap-2">
@@ -67,11 +80,13 @@ export function StatCard({
       </div>
       <p
         className={
-          "metric-value " +
+          "metric-value whitespace-nowrap" +
+          size +
+          " " +
           (value < 0 ? "text-rose-600 dark:text-rose-300" : style.value)
         }
       >
-        {formatCents(value)}
+        {text}
       </p>
       {delta !== undefined && (
         <p className="mt-3 text-[11px] text-slate-500 dark:text-slate-400">

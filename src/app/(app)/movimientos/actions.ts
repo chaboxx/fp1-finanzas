@@ -11,7 +11,7 @@ import {
 } from "@/lib/action-state";
 import { requireUser } from "@/lib/auth";
 import { todayISO } from "@/lib/dates";
-import { formatCents, parseToCents } from "@/lib/money";
+import { CURRENCY_LABEL, formatCents, parseToCents } from "@/lib/money";
 
 const optionalUuid = z
   .string()
@@ -24,6 +24,7 @@ const movementSchema = z
     id: optionalUuid,
     requestId: z.string().optional().pipe(z.uuid().optional()),
     type: z.enum(["expense", "income", "transfer"], { error: "Elige un tipo" }),
+    currency: z.enum(["PEN", "USD"]).default("PEN"),
     amount: z.string().transform((v, ctx) => {
       const cents = parseToCents(v);
       if (cents === null || cents <= 0) {
@@ -111,7 +112,33 @@ export async function saveMovement(
     ...(m.occurredOn ? { occurred_on: m.occurredOn } : {}),
   };
 
-  const { supabase } = await requireUser();
+  const { supabase, userId } = await requireUser();
+  // La moneda la define la cuenta; aquí solo se comprueba que coincida con la elegida,
+  // incluida la cuenta por defecto cuando el formulario no indica ninguna.
+  const accountId =
+    m.accountId ??
+    (
+      await supabase
+        .from("profiles")
+        .select("default_account_id")
+        .eq("id", userId)
+        .single()
+    ).data?.default_account_id;
+  const { data: account } = accountId
+    ? await supabase
+        .from("accounts")
+        .select("currency")
+        .eq("id", accountId)
+        .maybeSingle()
+    : { data: null };
+  if (account && account.currency !== m.currency)
+    return {
+      fieldErrors: {
+        accountId: `Elige una cuenta en ${CURRENCY_LABEL[m.currency].toLowerCase()}`,
+      },
+      values: formValues(formData),
+    };
+
   const { error } = m.id
     ? await supabase.from("transactions").update(row).eq("id", m.id)
     : await supabase.from("transactions").upsert(row, {
@@ -126,7 +153,7 @@ export async function saveMovement(
   refresh();
   return {
     ok: true,
-    message: `${TYPE_LABEL[m.type]} de ${formatCents(m.amount)} guardado`,
+    message: `${TYPE_LABEL[m.type]} de ${formatCents(m.amount, m.currency)} guardado`,
   };
 }
 

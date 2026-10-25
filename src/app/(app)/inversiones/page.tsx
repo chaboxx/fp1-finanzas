@@ -7,7 +7,12 @@ import { requireUser } from "@/lib/auth";
 import { fetchAll, getCatalogs, getReportRows } from "@/lib/finance-data";
 import { addDays, inRange, resolvePeriod, summarize } from "@/lib/dashboard";
 import { todayISO } from "@/lib/dates";
-import { formatCents } from "@/lib/money";
+import {
+  CURRENCIES,
+  CURRENCY_LABEL,
+  formatCents,
+  type Currency,
+} from "@/lib/money";
 import { investmentResult } from "@/lib/investments";
 import { InvestmentForm, InvestmentSettings } from "./investment-form";
 import { CategoriesManager } from "../categorias/categories-ui";
@@ -73,14 +78,23 @@ async function Investments({
       ),
       getReportRows(supabase, period.prevFrom, period.to),
     ]);
-  const executed = transactions.filter((t) => t.occurred_on <= today),
-    totals = summarize(executed);
+  const executed = transactions.filter((t) => t.occurred_on <= today);
   const latest = new Map<string, (typeof valuations)[number]>();
   for (const value of valuations) latest.set(value.investment_id, value);
-  const knownValue = [...latest.values()].reduce(
-    (s, v) => s + Number(v.value_cents),
-    0,
+  // Cada inversión tiene su moneda; los totales nunca suman soles con dólares.
+  const currencyOf = new Map(investments.map((i) => [i.id, i.currency]));
+  const inCurrency = <T extends { investment_id: string | null }>(
+    list: T[],
+    c: Currency,
+  ) =>
+    list.filter((x) => (currencyOf.get(x.investment_id ?? "") ?? "PEN") === c);
+  const currencies = CURRENCIES.filter(
+    (c) =>
+      c === "PEN" ||
+      investments.some((i) => i.currency === c) ||
+      catalogs.accounts.some((a) => a.currency === c),
   );
+  const multi = currencies.length > 1;
   const categories = new Map(catalogs.categories.map((c) => [c.id, c]));
   const edit =
     typeof raw.editar === "string"
@@ -102,53 +116,73 @@ async function Investments({
       (!accountIds.length || accountIds.includes(r.account_id ?? "")) &&
       (!categoryIds.length || categoryIds.includes(r.category_id)),
   );
-  const dates = [...new Set(valuations.map((v) => v.valued_on))],
-    snapshot = new Map<string, number>();
-  const valueTrend = dates.map((d) => {
-    for (const value of valuations.filter((v) => v.valued_on === d))
-      snapshot.set(value.investment_id, Number(value.value_cents));
-    return {
-      key: d,
-      end: addDays(d, 1),
-      label: d,
-      total: [...snapshot.values()].reduce((s, v) => s + v, 0),
-    };
-  });
+  const valueTrend = (c: Currency) => {
+    const own = inCurrency(valuations, c),
+      snapshot = new Map<string, number>();
+    return [...new Set(own.map((v) => v.valued_on))].map((d) => {
+      for (const value of own.filter((v) => v.valued_on === d))
+        snapshot.set(value.investment_id, Number(value.value_cents));
+      return {
+        key: d,
+        end: addDays(d, 1),
+        label: d,
+        total: [...snapshot.values()].reduce((s, v) => s + v, 0),
+      };
+    });
+  };
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <StatCard
-          tone="investment"
-          label="Aportes registrados"
-          value={totals.invested}
-          icon="trend"
-        />
-        <StatCard
-          tone="income"
-          label="Rescates registrados"
-          value={totals.divested}
-          icon="arrow"
-        />
-        <StatCard
-          tone="investment"
-          label="Aporte neto"
-          value={totals.invested - totals.divested}
-          icon="transfer"
-        />
-        <StatCard
-          tone="balance"
-          label="Último valor conocido"
-          value={knownValue}
-          emphasis
-          icon="wallet"
-          footnote={
-            latest.size +
-            " de " +
-            investments.length +
-            " inversiones con valorización; consulta sus fechas"
-          }
-        />
-      </div>
+      {currencies.map((c) => {
+        const totals = summarize(inCurrency(executed, c)),
+          known = inCurrency([...latest.values()], c),
+          count = investments.filter((i) => i.currency === c).length;
+        return (
+          <section key={c}>
+            {multi && (
+              <h2 className="eyebrow mb-2">
+                En {CURRENCY_LABEL[c].toLowerCase()}
+              </h2>
+            )}
+            <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+              <StatCard
+                tone="investment"
+                label="Aportes registrados"
+                value={totals.invested}
+                currency={c}
+                icon="trend"
+              />
+              <StatCard
+                tone="income"
+                label="Rescates registrados"
+                value={totals.divested}
+                currency={c}
+                icon="arrow"
+              />
+              <StatCard
+                tone="investment"
+                label="Aporte neto"
+                value={totals.invested - totals.divested}
+                currency={c}
+                icon="transfer"
+              />
+              <StatCard
+                tone="balance"
+                label="Último valor conocido"
+                value={known.reduce((s, v) => s + Number(v.value_cents), 0)}
+                currency={c}
+                emphasis
+                icon="wallet"
+                footnote={
+                  known.length +
+                  " de " +
+                  count +
+                  " inversiones con valorización; consulta sus fechas"
+                }
+              />
+            </div>
+          </section>
+        );
+      })}
       <div className="flex flex-wrap gap-3">
         {(
           [
@@ -195,7 +229,8 @@ async function Investments({
             const moves = executed.filter((t) => t.investment_id === i.id),
               s = summarize(moves),
               value = latest.get(i.id),
-              capital = i.initial_capital_cents;
+              capital = i.initial_capital_cents,
+              money = (cents: number) => formatCents(cents, i.currency);
             return (
               <Card key={i.id} className={!i.is_active ? "opacity-65" : ""}>
                 <div className="mb-3 flex items-start justify-between gap-2">
@@ -208,11 +243,16 @@ async function Investments({
                       {i.platform || "Sin plataforma"}
                     </p>
                   </div>
-                  {!i.is_active && <Badge tone="muted">Deshabilitada</Badge>}
+                  <div className="flex flex-wrap justify-end gap-1">
+                    {i.currency !== "PEN" && (
+                      <Badge tone="muted">{CURRENCY_LABEL[i.currency]}</Badge>
+                    )}
+                    {!i.is_active && <Badge tone="muted">Deshabilitada</Badge>}
+                  </div>
                 </div>
                 <p className="mt-5 text-2xl font-semibold tabular-nums">
                   {value
-                    ? formatCents(Number(value.value_cents))
+                    ? money(Number(value.value_cents))
                     : "Sin valor informado"}
                 </p>
                 <p className="mt-1 text-[11px] text-slate-400">
@@ -224,13 +264,13 @@ async function Investments({
                   <p className="flex justify-between">
                     <span>Aportes / rescates</span>
                     <span>
-                      {formatCents(s.invested)} / {formatCents(s.divested)}
+                      {money(s.invested)} / {money(s.divested)}
                     </span>
                   </p>
                   <p className="flex justify-between">
                     <span>Capital previo</span>
                     <span>
-                      {capital === null ? "No informado" : formatCents(capital)}
+                      {capital === null ? "No informado" : money(capital)}
                     </span>
                   </p>
                   <p className="flex justify-between border-t border-slate-100 pt-3 dark:border-slate-800">
@@ -241,7 +281,7 @@ async function Investments({
                     </span>
                     <strong>
                       {value && capital !== null
-                        ? formatCents(investmentResult(value, capital, moves)!)
+                        ? money(investmentResult(value, capital, moves)!)
                         : "Faltan datos"}
                     </strong>
                   </p>
@@ -281,33 +321,50 @@ async function Investments({
           {...catalogs}
           basePath="/inversiones"
         />
-        <ReportExplorer
-          key={"explorer-" + JSON.stringify(params)}
-          rows={inRange(scoped, period.from, period.plotTo)}
-          previous={inRange(scoped, period.prevFrom, period.prevTo)}
-          period={period}
-          params={params}
-          basePath="/inversiones"
-          allowedMetrics={["invest"]}
-        />
+        <div className="space-y-6">
+          {currencies.map((c) => {
+            const rows = scoped.filter((r) => (r.currency ?? "PEN") === c);
+            return (
+              <ReportExplorer
+                key={"explorer-" + c + JSON.stringify(params)}
+                rows={inRange(rows, period.from, period.plotTo)}
+                previous={inRange(rows, period.prevFrom, period.prevTo)}
+                period={period}
+                params={params}
+                basePath="/inversiones"
+                allowedMetrics={["invest"]}
+                currency={c}
+                showCurrency={multi}
+              />
+            );
+          })}
+        </div>
       </div>
-      {valueTrend.length > 0 && (
-        <Card>
-          <h2 className="mb-2 font-semibold">Evolución del valor informado</h2>
-          <p className="muted mb-5 text-xs">
-            Suma de las últimas valorizaciones conocidas en cada fecha. Puede
-            incluir fechas distintas y una cartera incompleta; no es un cálculo
-            de rentabilidad.
-          </p>
-          <TrendChart
-            data={valueTrend}
-            series={[]}
-            granularity="day"
-            title="Valor informado"
-            disableDetail
-          />
-        </Card>
-      )}
+      {currencies.map((c) => {
+        const trend = valueTrend(c);
+        if (!trend.length) return null;
+        return (
+          <Card key={c}>
+            <h2 className="mb-2 font-semibold">
+              Evolución del valor informado
+              {multi && " · " + CURRENCY_LABEL[c].toLowerCase()}
+            </h2>
+            <p className="muted mb-5 text-xs">
+              Suma de las últimas valorizaciones conocidas en cada fecha. Puede
+              incluir fechas distintas y una cartera incompleta; no es un
+              cálculo de rentabilidad.
+            </p>
+            <TrendChart
+              data={trend}
+              series={[]}
+              granularity="day"
+              title="Valor informado"
+              disableDetail
+              currency={c}
+            />
+          </Card>
+        );
+      })}
       <Card>
         <h2 className="mb-4 font-semibold">Aportes y rescates recientes</h2>
         <div className="max-h-96 overflow-auto">
@@ -332,14 +389,20 @@ async function Investments({
               </div>
               <strong className="text-sm tabular-nums">
                 {t.type === "invest" ? "−" : "+"}
-                {formatCents(t.amount_cents)}
+                {formatCents(
+                  t.amount_cents,
+                  currencyOf.get(t.investment_id ?? ""),
+                )}
               </strong>
               <DeleteMovementButton
                 id={t.id}
                 description={
                   (t.type === "invest" ? "Aporte" : "Rescate") +
                   " · " +
-                  formatCents(t.amount_cents) +
+                  formatCents(
+                    t.amount_cents,
+                    currencyOf.get(t.investment_id ?? ""),
+                  ) +
                   " · " +
                   t.occurred_on
                 }

@@ -21,7 +21,13 @@ import {
 import { todayISO, monthRange, formatMonth } from "@/lib/dates";
 import { DashboardFilters } from "./_dashboard/filters";
 import { ReportExplorer } from "./_dashboard/explorer";
-import { formatCents } from "@/lib/money";
+import {
+  CURRENCIES,
+  CURRENCY_LABEL,
+  formatCents,
+  type Currency,
+} from "@/lib/money";
+import type { DashboardRow } from "@/lib/dashboard";
 export default function DashboardPage({ searchParams }: PageProps<"/">) {
   return (
     <>
@@ -52,7 +58,8 @@ async function Dashboard({ searchParams }: { searchParams: Promise<Params> }) {
       period.to,
     ),
     getBudgetData(supabase, month),
-    getReportRows(supabase, range.from, range.to),
+    // Presupuesto y lectura del mes están en soles.
+    getReportRows(supabase, range.from, range.to, "PEN"),
   ]);
   const accounts = values(params, "cuenta"),
     categories = values(params, "categoria");
@@ -60,16 +67,19 @@ async function Dashboard({ searchParams }: { searchParams: Promise<Params> }) {
     (r) => !accounts.length || accounts.includes(r.account_id ?? ""),
   );
   const current = inRange(scoped, period.from, period.plotTo),
-    previous = inRange(scoped, period.prevFrom, period.prevTo);
-  const now = summarize(current),
-    before = summarize(previous),
+    previous = inRange(scoped, period.prevFrom, period.prevTo),
     monthly = summarize(budgetRows.filter((r) => r.occurred_on <= today));
-  const analyzed = current.filter(
-      (r) => !categories.length || categories.includes(r.category_id),
-    ),
-    prior = previous.filter(
+  // Soles y dólares no se suman: cada moneda con cuentas tiene sus tarjetas y su gráfico.
+  const currencies = CURRENCIES.filter(
+    (c) => c === "PEN" || catalogs.accounts.some((a) => a.currency === c),
+  );
+  const byCurrency = (list: DashboardRow[], c: Currency) =>
+    list.filter((r) => (r.currency ?? "PEN") === c);
+  const inCategories = (list: DashboardRow[]) =>
+    list.filter(
       (r) => !categories.length || categories.includes(r.category_id),
     );
+  const multi = currencies.length > 1;
   return (
     <>
       <DashboardFilters
@@ -93,55 +103,28 @@ async function Dashboard({ searchParams }: { searchParams: Promise<Params> }) {
             : "Sin días ejecutados para comparar"}
         </span>
       </div>
-      <div className="mb-6 grid grid-cols-2 gap-3 xl:grid-cols-5">
-        <StatCard
-          tone="income"
-          label="Ingresos"
-          value={now.income}
-          icon="arrow"
-          delta={change(now.income, before.income)}
+      {currencies.map((c) => (
+        <PeriodCards
+          key={c}
+          currency={c}
+          heading={multi ? "En " + CURRENCY_LABEL[c].toLowerCase() : undefined}
+          now={summarize(byCurrency(current, c))}
+          before={summarize(byCurrency(previous, c))}
         />
-        <StatCard
-          tone="expense"
-          label="Gastos"
-          value={now.expense}
-          icon="wallet"
-          delta={change(now.expense, before.expense)}
-        />
-        <StatCard
-          tone="investment"
-          label="Aportes a inversiones"
-          value={now.invested}
-          icon="trend"
-          delta={change(now.invested, before.invested)}
-        />
-        <StatCard
-          tone="expense"
-          label="Egresos totales"
-          value={now.outflow}
-          icon="list"
-          footnote="Gastos + aportes; sin transferencias"
-        />
-        <StatCard
-          tone="balance"
-          label="Resultado del período"
-          value={now.balance}
-          emphasis
-          icon="budget"
-          footnote={
-            now.divested
-              ? "Incluye " + formatCents(now.divested) + " en rescates"
-              : "Ingresos − gastos − aportes"
-          }
-        />
+      ))}
+      <div className="space-y-6">
+        {currencies.map((c) => (
+          <ReportExplorer
+            key={"explorer-" + c + JSON.stringify(params)}
+            rows={inCategories(byCurrency(current, c))}
+            previous={inCategories(byCurrency(previous, c))}
+            period={period}
+            params={params}
+            currency={c}
+            showCurrency={multi}
+          />
+        ))}
       </div>
-      <ReportExplorer
-        key={"explorer-" + JSON.stringify(params)}
-        rows={analyzed}
-        previous={prior}
-        period={period}
-        params={params}
-      />
       <div className="mt-6 grid gap-6 xl:grid-cols-2">
         <BudgetSnapshot
           budget={budget}
@@ -153,6 +136,7 @@ async function Dashboard({ searchParams }: { searchParams: Promise<Params> }) {
           <p className="eyebrow mb-2">Lectura rápida</p>
           <h2 className="mb-5 font-semibold">
             Así va {formatMonth(month).toLowerCase()}
+            {multi && " · en soles"}
           </h2>
           <div className="space-y-4 text-sm">
             <p className="flex justify-between gap-3 text-slate-500">
@@ -183,5 +167,72 @@ async function Dashboard({ searchParams }: { searchParams: Promise<Params> }) {
         </section>
       </div>
     </>
+  );
+}
+
+function PeriodCards({
+  currency,
+  heading,
+  now,
+  before,
+}: {
+  currency: Currency;
+  heading?: string;
+  now: ReturnType<typeof summarize>;
+  before: ReturnType<typeof summarize>;
+}) {
+  return (
+    <section className="mb-6">
+      {heading && <h2 className="eyebrow mb-2">{heading}</h2>}
+      <div className="grid grid-cols-2 gap-3 xl:grid-cols-5">
+        <StatCard
+          tone="income"
+          label="Ingresos"
+          value={now.income}
+          currency={currency}
+          icon="arrow"
+          delta={change(now.income, before.income)}
+        />
+        <StatCard
+          tone="expense"
+          label="Gastos"
+          value={now.expense}
+          currency={currency}
+          icon="wallet"
+          delta={change(now.expense, before.expense)}
+        />
+        <StatCard
+          tone="investment"
+          label="Aportes a inversiones"
+          value={now.invested}
+          currency={currency}
+          icon="trend"
+          delta={change(now.invested, before.invested)}
+        />
+        <StatCard
+          tone="expense"
+          label="Egresos totales"
+          value={now.outflow}
+          currency={currency}
+          icon="list"
+          footnote="Gastos + aportes; sin transferencias"
+        />
+        <StatCard
+          tone="balance"
+          label="Resultado del período"
+          value={now.balance}
+          currency={currency}
+          emphasis
+          icon="budget"
+          footnote={
+            now.divested
+              ? "Incluye " +
+                formatCents(now.divested, currency) +
+                " en rescates"
+              : "Ingresos − gastos − aportes"
+          }
+        />
+      </div>
+    </section>
   );
 }

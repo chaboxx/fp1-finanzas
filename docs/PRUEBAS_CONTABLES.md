@@ -31,11 +31,12 @@ compara la base contra el Libro.
 
 1. **Saldo de cada cuenta** = saldo inicial + ingresos + rescates − gastos − aportes ± transferencias
    (solo lo ejecutado: lo programado a futuro aún no cuenta).
-2. **Conservación**: la suma de todas las cuentas = saldos iniciales + ingresos + rescates − gastos
-   − aportes. Las transferencias se anulan entre sí. Se calcula de dos formas independientes.
+2. **Conservación por moneda**: en cada moneda, la suma de sus cuentas = saldos iniciales + ingresos
+   + rescates − gastos − aportes. Las transferencias se anulan entre sí (son de la misma moneda).
+   Se calcula de dos formas independientes. Ninguna transferencia ni aporte mezcla monedas.
 3. **Mismos movimientos**: cantidad y suma por tipo idénticas al Libro.
-4. **Resumen mensual** (`monthly_summary`) = Libro, mes por mes.
-5. **Lo que lee la pantalla** (`getReportRows` paginado + `summarize` + `byCategory`) = Libro.
+4. **Resumen mensual** (`monthly_summary`) = Libro, mes por mes y moneda por moneda.
+5. **Lo que lee la pantalla** (`getReportRows` paginado + `summarize` + `byCategory`) = Libro, por moneda.
 
 ### Los escenarios
 
@@ -46,6 +47,8 @@ compara la base contra el Libro.
 | [`formularios.test.ts`](../tests/contable/formularios.test.ts) | Errores humanos: montos inválidos, céntimos (0.10 + 0.20), fechas inexistentes, sin categoría, transferencia a la misma cuenta, cuentas/categorías de otra persona, doble clic, categoría o cuenta deshabilitada, edición y borrado. Regla: **si el formulario da error, no se mueve ni un céntimo**. |
 | [`recurrentes.test.ts`](../tests/contable/recurrentes.test.ts) | Calendario exacto por años: día 31 → fin de febrero (bisiesto incluido), 29 de febrero anual, 105 semanas, sin duplicados al procesar varias veces, editar una regla no cambia lo creado, pausa y reanudación. |
 | [`categorias-predefinidas.test.ts`](../tests/contable/categorias-predefinidas.test.ts) | Los scripts para eliminar categorías predefinidas: solo borran las creadas en bloque por la app y sin uso; conservan las tuyas y las que tienen historial; el dinero no cambia; repetirlo no borra más; usuarios nuevos ya no las reciben. |
+| [`dolares.test.ts`](../tests/contable/dolares.test.ts) | Un mes en dos monedas **calculado a mano**: S/ 2,000 del día a día y US$ 100 de viaje y US$ 100 en un ETF; saldos en su moneda, resumen y presupuesto sin mezclar, y rechazos sin mover un céntimo (transferir soles a dólares, gastar dólares desde una cuenta en soles, aportar soles a un ETF en dólares, recurrente en dólares, cambiar la moneda de una cuenta con historial). |
+| [`cuentas-a-dolares.test.ts`](../tests/contable/cuentas-a-dolares.test.ts) | Los scripts para marcar como dólares cuentas antiguas: se niegan si mezclarían monedas, no cambian montos ni saldos y no tocan a otras personas. |
 | [`auditoria.test.ts`](../tests/contable/auditoria.test.ts) | **Prueba a las pruebas**: sabotea la base a propósito (vista de saldos sin transferencias, resumen que cuenta transferencias como gasto, recurrente duplicado, categoría equivocada, presupuesto > 100 %, movimiento borrado por fuera) y exige que la auditoría y las invariantes lo detecten. |
 
 La simulación es reproducible (semilla fija). Para probar otros datos:

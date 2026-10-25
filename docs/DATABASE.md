@@ -9,7 +9,7 @@ Las pruebas de todo lo que se describe aquí están en
 
 | Convención | Detalle |
 |---|---|
-| Montos | `bigint` en **céntimos** (`*_cents`). S/ 15.50 = `1550`. |
+| Montos | `bigint` en **céntimos** (`*_cents`). S/ 15.50 = `1550`; US$ 15.50 también = `1550`: la moneda la da la cuenta (o la inversión). |
 | Fechas de negocio | `date` (sin hora). "Hoy" lo calcula `user_today()` en la zona del usuario. |
 | Fechas técnicas | `timestamptz` (`created_at`, `updated_at`). |
 | Dueño | Cada tabla tiene `user_id uuid not null default auth.uid()`: el cliente nunca lo envía. |
@@ -28,6 +28,7 @@ Las pruebas de todo lo que se describe aquí están en
 | `20261028000000_profile_theme.sql` | Tema por usuario y consolidación de reglas para instalaciones del MVP anterior |
 | `20261030000000_sin_categorias_predefinidas.sql` | Al registrarse ya no se crean categorías predefinidas (se elimina `seed_categories_for_user`). Borrar las existentes: `scripts/categorias-predefinidas-*.sql` |
 | `20261029000000_financial_targets.sql` | Metas financieras por mes (`financial_targets`) y `accounts.in_emergency_fund` para la pestaña Métricas |
+| `20261031000000_moneda_usd.sql` | Dólares: `currency` en cuentas e inversiones, reglas para no mezclar monedas y vistas por moneda (ver [Dólares](#dólares-migración-20261031000000)) |
 
 Las migraciones **nunca se editan** una vez aplicadas: los cambios van en una migración nueva.
 Hoy se aplican a mano en el SQL Editor de Supabase (ver [ROADMAP](ROADMAP.md) para automatizarlo).
@@ -40,6 +41,7 @@ Hoy se aplican a mano en el SQL Editor de Supabase (ver [ROADMAP](ROADMAP.md) pa
 | `category_kind` | `expense`, `income`, `investment` |
 | `transaction_type` | `expense`, `income`, `transfer`, `invest` (aporte), `divest` (rescate) |
 | `recurrence_frequency` | `weekly`, `monthly`, `yearly` |
+| `currency_code` | `PEN`, `USD` |
 
 ## Tablas
 
@@ -48,7 +50,7 @@ Hoy se aplican a mano en el SQL Editor de Supabase (ver [ROADMAP](ROADMAP.md) pa
 |---|---|---|
 | `id` | uuid PK | = `auth.users.id`; se borra en cascada con el usuario |
 | `display_name` | text | sin uso aún |
-| `currency` | char(3) | default `PEN` (sin uso en la UI: todo es soles) |
+| `currency` | char(3) | default `PEN` (sin uso: la moneda es de cada cuenta) |
 | `timezone` | text | default `America/Lima`; lo usa `user_today()` |
 | `default_account_id` | uuid | FK compuesta a `accounts`; debe ser una cuenta activa |
 
@@ -232,3 +234,38 @@ fondo de emergencia. Las tarjetas de crédito nunca cuentan, tengan el valor que
 Los cálculos (proyección al cierre, tasa de ahorro, ritmo del presupuesto, cumplimiento de
 inversión, fondo de emergencia, comparaciones por categoría y rachas) están en
 `src/lib/metrics.ts` como funciones puras, con pruebas en `src/lib/metrics.test.ts`.
+
+## Dólares (migración 20261031000000)
+
+Decisión del usuario (plan en [PLAN_USD.md](PLAN_USD.md)): **la moneda es de la cuenta y nunca
+se suman soles con dólares**. No hay tipo de cambio: las conversiones las hace la persona fuera de
+la app y registra el resultado en la cuenta de esa moneda.
+
+- `accounts.currency` e `investments.currency` (`currency_code`, default `PEN`). Todo lo anterior
+  quedó en soles. Los movimientos no guardan moneda: usan la de su cuenta.
+- La moneda de una cuenta o inversión **no cambia si ya tiene movimientos** (o valorizaciones /
+  recurrentes): los montos guardados dejarían de significar lo que significaban.
+
+| Trigger | Regla |
+|---|---|
+| `transactions_currency_check` | Transferencias solo entre cuentas de la misma moneda. Aportes y rescates solo desde cuentas de la moneda de la inversión. Un movimiento generado por un recurrente debe caer en una cuenta en soles (si la cuenta por defecto está en dólares, la regla guarda el error en `last_error`). Su nombre lo ordena después de `transactions_before_write`, que completa la cuenta por defecto. |
+| `recurring_rules_currency_check` | Los recurrentes solo usan cuentas en soles. |
+| `accounts_currency_lock` / `investments_currency_lock` | No cambiar la moneda con historial. |
+
+Vistas (las columnas nuevas van al final):
+
+| Vista | Cambio |
+|---|---|
+| `account_balances` | + `currency`: el saldo está en la moneda de la cuenta. |
+| `categorized_movements` | + `currency` (la de la cuenta). |
+| `monthly_summary` | Una fila por **mes y moneda** (+ `currency`). Métricas filtra `PEN`. |
+| `budget_plan_progress`, `budget_progress` | Solo cuentan movimientos en soles: el presupuesto es en soles. |
+
+`save_investment_entry` recibe `p_currency` (default `PEN`, al final para que las llamadas anteriores
+sigan funcionando): moneda de la posición nueva; al buscar una posición por categoría y nombre,
+también debe coincidir la moneda.
+
+Cuentas que ya se usaban para dólares con los montos escritos en dólares:
+`scripts/cuentas-a-dolares-1-vista-previa.sql` (solo lectura) y
+`scripts/cuentas-a-dolares-2-convertir.sql` (marca la cuenta y sus inversiones como dólares sin
+cambiar montos; se niega si mezclaría monedas).

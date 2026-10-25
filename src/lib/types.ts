@@ -1,4 +1,5 @@
 import { CATEGORY_PALETTE } from "@/lib/colors";
+import type { Currency } from "@/lib/money";
 
 export type AccountType = "cash" | "debit" | "credit" | "savings";
 export type CategoryKind = "expense" | "income" | "investment";
@@ -24,6 +25,7 @@ export type AccountWithBalance = {
   name: string;
   type: AccountType;
   is_active: boolean;
+  currency: Currency;
   initial_balance_cents: number;
   balance_cents: number;
 };
@@ -44,6 +46,7 @@ export type Account = {
   name: string;
   type: AccountType;
   is_active: boolean;
+  currency: Currency;
 };
 
 // Movimiento tal como lo edita el formulario.

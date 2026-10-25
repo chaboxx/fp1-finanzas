@@ -128,17 +128,21 @@ export function RecurringForm({
           )}
           <label className="text-sm font-medium">
             {type === "transfer" ? "Cuenta de origen" : "Cuenta"}
-            {type === "transfer" && <RequiredMark />}
+            {(type === "transfer" || !defaultAccountId) && <RequiredMark />}
             <select
               className="field mt-1.5"
               name="accountId"
-              required={type === "transfer"}
+              required={type === "transfer" || !defaultAccountId}
               defaultValue={
                 rule?.account_id ??
                 (type === "transfer" ? (defaultAccountId ?? "") : "")
               }
             >
-              <option value="">Predeterminada al generar</option>
+              <option value="">
+                {defaultAccountId
+                  ? "Predeterminada al generar"
+                  : "Elige una cuenta en soles"}
+              </option>
               {accounts
                 .filter((a) => a.is_active || a.id === rule?.account_id)
                 .map((a) => (

@@ -30,6 +30,7 @@ import {
 } from "@/lib/dashboard";
 import type { BudgetData, DbRow } from "@/lib/finance-data";
 import type { Category, AccountWithBalance } from "@/lib/types";
+import { CURRENCIES, CURRENCY_LABEL, type Currency } from "@/lib/money";
 const id = (n: number) =>
   "00000000-0000-4000-8000-" + String(n).padStart(12, "0");
 const categories: Category[] = [
@@ -68,6 +69,7 @@ const accounts: AccountWithBalance[] = [
     name: "BCP Débito",
     type: "debit",
     is_active: true,
+    currency: "PEN",
     initial_balance_cents: 0,
     balance_cents: 360000,
   },
@@ -76,6 +78,7 @@ const accounts: AccountWithBalance[] = [
     name: "Efectivo",
     type: "cash",
     is_active: true,
+    currency: "PEN",
     initial_balance_cents: 0,
     balance_cents: 35000,
   },
@@ -84,6 +87,7 @@ const accounts: AccountWithBalance[] = [
     name: "Visa",
     type: "credit",
     is_active: true,
+    currency: "PEN",
     initial_balance_cents: 0,
     balance_cents: -18000,
   },
@@ -92,8 +96,18 @@ const accounts: AccountWithBalance[] = [
     name: "Cuenta anterior",
     type: "savings",
     is_active: false,
+    currency: "PEN",
     initial_balance_cents: 0,
     balance_cents: 0,
+  },
+  {
+    id: id(14),
+    name: "Interbank Dólares",
+    type: "savings",
+    is_active: true,
+    currency: "USD",
+    initial_balance_cents: 0,
+    balance_cents: 120000,
   },
 ];
 const rows: DashboardRow[] = [
@@ -143,6 +157,31 @@ const rows: DashboardRow[] = [
     category_color: "#6250d6",
     category_is_active: true,
   },
+  // Dólares: un viaje y un aporte, que se muestran aparte de los soles.
+  {
+    id: id(160),
+    type: "expense",
+    amount_cents: 10000,
+    occurred_on: "2026-10-12",
+    account_id: id(14),
+    category_id: id(2),
+    category_name: "Vivienda",
+    category_color: "#eb6834",
+    category_is_active: true,
+    currency: "USD",
+  },
+  {
+    id: id(161),
+    type: "invest",
+    amount_cents: 10000,
+    occurred_on: "2026-10-15",
+    account_id: id(14),
+    category_id: id(3),
+    category_name: "S&P 500",
+    category_color: "#1baf7a",
+    category_is_active: true,
+    currency: "USD",
+  },
 ];
 const plan: BudgetData["plan"] = {
   id: id(20),
@@ -182,6 +221,20 @@ const investments: DbRow<"investments">[] = [
     initial_capital_cents: 0,
     opened_on: "2026-10-01",
     request_id: null,
+    currency: "PEN",
+  },
+  {
+    id: id(51),
+    user_id: id(99),
+    category_id: id(3),
+    name: "ETF en dólares",
+    platform: "Mi broker",
+    is_active: true,
+    created_at: "2026-10-01T12:00:00Z",
+    initial_capital_cents: 0,
+    opened_on: "2026-10-01",
+    request_id: null,
+    currency: "USD",
   },
 ];
 export default function ReviewPage({
@@ -366,9 +419,10 @@ async function Content({ searchParams }: { searchParams: Promise<Params> }) {
     (r) => !accountIds.length || accountIds.includes(r.account_id!),
   );
   const analyzed = current.filter(
-      (r) => !categoryIds.length || categoryIds.includes(r.category_id),
-    ),
-    stats = summarize(current);
+    (r) => !categoryIds.length || categoryIds.includes(r.category_id),
+  );
+  const inCurrency = (list: DashboardRow[], c: Currency) =>
+    list.filter((r) => (r.currency ?? "PEN") === c);
   return (
     <>
       <PageHeader
@@ -383,34 +437,63 @@ async function Content({ searchParams }: { searchParams: Promise<Params> }) {
         categories={categories}
         basePath="/auth/revision"
       />
-      <div className="mb-6 grid grid-cols-2 gap-3 xl:grid-cols-5">
-        <StatCard tone="income" label="Ingresos" value={stats.income} />
-        <StatCard tone="expense" label="Gastos" value={stats.expense} />
-        <StatCard
-          tone="investment"
-          label="Aportes a inversiones"
-          value={stats.invested}
-        />
-        <StatCard
-          tone="expense"
-          label="Egresos totales"
-          value={stats.outflow}
-        />
-        <StatCard
-          tone="balance"
-          label="Resultado del período"
-          value={stats.balance}
-          emphasis
-        />
+      {CURRENCIES.map((c) => {
+        const stats = summarize(inCurrency(current, c));
+        return (
+          <section key={c} className="mb-6">
+            <h2 className="eyebrow mb-2">
+              En {CURRENCY_LABEL[c].toLowerCase()}
+            </h2>
+            <div className="grid grid-cols-2 gap-3 xl:grid-cols-5">
+              <StatCard
+                tone="income"
+                label="Ingresos"
+                value={stats.income}
+                currency={c}
+              />
+              <StatCard
+                tone="expense"
+                label="Gastos"
+                value={stats.expense}
+                currency={c}
+              />
+              <StatCard
+                tone="investment"
+                label="Aportes a inversiones"
+                value={stats.invested}
+                currency={c}
+              />
+              <StatCard
+                tone="expense"
+                label="Egresos totales"
+                value={stats.outflow}
+                currency={c}
+              />
+              <StatCard
+                tone="balance"
+                label="Resultado del período"
+                value={stats.balance}
+                currency={c}
+                emphasis
+              />
+            </div>
+          </section>
+        );
+      })}
+      <div className="space-y-6">
+        {CURRENCIES.map((c) => (
+          <ReportExplorer
+            key={"explorer-" + c + JSON.stringify(params)}
+            rows={inCurrency(analyzed, c)}
+            previous={[]}
+            period={period}
+            params={params}
+            basePath="/auth/revision"
+            currency={c}
+            showCurrency
+          />
+        ))}
       </div>
-      <ReportExplorer
-        key={"explorer-" + JSON.stringify(params)}
-        rows={analyzed}
-        previous={[]}
-        period={period}
-        params={params}
-        basePath="/auth/revision"
-      />
       <div className="mt-6">
         <BudgetSnapshot
           budget={budget}

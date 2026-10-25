@@ -6,7 +6,13 @@ import { Card } from "@/components/ui";
 import { RequiredMark } from "@/components/required-mark";
 import type { Account, Category } from "@/lib/types";
 import type { DbRow } from "@/lib/finance-data";
-import { centsToInput } from "@/lib/money";
+import {
+  centsToInput,
+  CURRENCIES,
+  CURRENCY_LABEL,
+  CURRENCY_SYMBOL,
+  type Currency,
+} from "@/lib/money";
 import { useCloseModal } from "@/components/form-modal";
 import {
   saveInvestment,
@@ -53,7 +59,17 @@ export function InvestmentForm({
     },
     {},
   );
-  const defaultAccount = accounts.find((a) => a.id === defaultAccountId),
+  const defaultAccount = accounts.find((a) => a.id === defaultAccountId);
+  // La moneda es de la inversión: elegirla filtra posiciones y cuentas.
+  const [currency, setCurrency] = useState<Currency>(
+    investments.find((i) => i.id === editing?.investment_id)?.currency ?? "PEN",
+  );
+  const currencies = CURRENCIES.filter(
+    (c) =>
+      accounts.some((a) => a.currency === c) ||
+      investments.some((i) => i.currency === c),
+  );
+  const defaultFits = defaultAccount?.currency === currency,
     money = ["invest", "divest"].includes(operation),
     newPosition =
       operation === "opening" || (operation === "invest" && !selected);
@@ -82,6 +98,28 @@ export function InvestmentForm({
       >
         <input type="hidden" name="entryId" value={editing?.id ?? ""} />
         <input type="hidden" name="operation" value={operation} />
+        <input type="hidden" name="currency" value={currency} />
+        {currencies.length > 1 && !editing && (
+          <div className="segmented" aria-label="Moneda">
+            {currencies.map((c) => (
+              <button
+                key={c}
+                type="button"
+                className="segment"
+                aria-pressed={currency === c}
+                onClick={() => {
+                  setCurrency(c);
+                  if (
+                    investments.find((i) => i.id === selected)?.currency !== c
+                  )
+                    setSelected("");
+                }}
+              >
+                {CURRENCY_LABEL[c]} ({CURRENCY_SYMBOL[c]})
+              </button>
+            ))}
+          </div>
+        )}
         <div className="segmented" aria-label="Operación de inversión">
           {(
             [
@@ -133,6 +171,7 @@ export function InvestmentForm({
                 </option>
                 {investments
                   .filter((i) => i.is_active || i.id === editing?.investment_id)
+                  .filter((i) => i.currency === currency)
                   .map((i) => (
                     <option key={i.id} value={i.id}>
                       {i.name}
@@ -182,9 +221,9 @@ export function InvestmentForm({
           )}
           <FormField
             label={
-              operation === "valuation" || operation === "opening"
-                ? "Valor informado (S/)"
-                : "Monto (S/)"
+              (operation === "valuation" || operation === "opening"
+                ? "Valor informado"
+                : "Monto") + ` (${CURRENCY_SYMBOL[currency]})`
             }
             name="amount"
             money
@@ -205,16 +244,23 @@ export function InvestmentForm({
               {operation === "invest"
                 ? "Cuenta de origen"
                 : "Cuenta que recibe"}
+              {!defaultFits && <RequiredMark />}
               <select
+                key={currency}
                 className="field mt-1.5"
                 name="accountId"
+                required={!defaultFits}
                 defaultValue={editing?.account_id ?? ""}
               >
                 <option value="">
-                  Por defecto: {defaultAccount?.name ?? "configura una cuenta"}
+                  {defaultFits
+                    ? "Por defecto: " + defaultAccount.name
+                    : "Elige una cuenta en " +
+                      CURRENCY_LABEL[currency].toLowerCase()}
                 </option>
                 {accounts
                   .filter((a) => a.is_active || a.id === editing?.account_id)
+                  .filter((a) => a.currency === currency)
                   .map((a) => (
                     <option key={a.id} value={a.id}>
                       {a.name}
@@ -250,7 +296,9 @@ export function InvestmentForm({
             : operation === "valuation"
               ? "Actualizar el valor no crea un aporte ni cambia el saldo de tus cuentas. Si ya informaste un valor ese día, se reemplaza."
               : operation === "invest"
-                ? "El aporte se descuenta una sola vez y cuenta como egreso y ejecución de tu presupuesto de inversión."
+                ? currency === "PEN"
+                  ? "El aporte se descuenta una sola vez y cuenta como egreso y ejecución de tu presupuesto de inversión."
+                  : "El aporte se descuenta una sola vez de tu cuenta en dólares y se ve en el Resumen en dólares. El presupuesto es en soles: no lo consume."
                 : "El rescate suma a tu cuenta y se muestra separado de ingresos ordinarios. No repone el presupuesto consumido."}
         </p>
         <div className="sm:w-64">

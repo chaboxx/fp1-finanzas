@@ -8,7 +8,14 @@ import { Icon } from "@/components/icons";
 import { FormAlert, FormField, SubmitButton } from "@/components/form-field";
 import { Badge, Button, Card, SelectField } from "@/components/ui";
 import type { ActionState } from "@/lib/action-state";
-import { centsToInput, formatCents } from "@/lib/money";
+import {
+  centsToInput,
+  CURRENCIES,
+  CURRENCY_LABEL,
+  CURRENCY_SYMBOL,
+  formatCents,
+  type Currency,
+} from "@/lib/money";
 import {
   ACCOUNT_TYPE_LABELS,
   type AccountType,
@@ -26,11 +33,13 @@ export function CreateAccountForm({
 }: { onCreated?: () => void } = {}) {
   const closeModal = useCloseModal();
   const [type, setType] = useState<AccountType>("cash");
+  const [currency, setCurrency] = useState<Currency>("PEN");
   const [state, formAction, pending] = useActionState(
     async (prev: ActionState, formData: FormData) => {
       const result = await createAccount(prev, formData);
       if (result.ok) {
         setType("cash");
+        setCurrency("PEN");
         onCreated?.();
         closeModal?.();
       }
@@ -44,7 +53,7 @@ export function CreateAccountForm({
       <form action={formAction} className="flex flex-col gap-4" noValidate>
         {!closeModal && <h2 className="font-semibold">Nueva cuenta</h2>}
         {state.error && <FormAlert tone="error">{state.error}</FormAlert>}
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2">
           <FormField
             label="Nombre"
             name="name"
@@ -67,9 +76,11 @@ export function CreateAccountForm({
               </option>
             ))}
           </SelectField>
+          <CurrencySelect value={currency} onChange={setCurrency} />
           <FormField
             label={
-              type === "credit" ? "Deuda actual (S/)" : "Saldo inicial (S/)"
+              (type === "credit" ? "Deuda actual" : "Saldo inicial") +
+              ` (${CURRENCY_SYMBOL[currency]})`
             }
             name="initialBalance"
             money
@@ -164,6 +175,9 @@ function AccountRow({
               </Link>
               {isDefault && <Badge tone="success">Por defecto</Badge>}
               {!account.is_active && <Badge tone="muted">Deshabilitada</Badge>}
+              {account.currency !== "PEN" && (
+                <Badge tone="muted">{CURRENCY_LABEL[account.currency]}</Badge>
+              )}
             </div>
             <p className="text-sm text-zinc-500">
               {ACCOUNT_TYPE_LABELS[account.type]}
@@ -178,6 +192,7 @@ function AccountRow({
               isCredit
                 ? Math.abs(account.balance_cents)
                 : account.balance_cents,
+              account.currency,
             )}
           </p>
           {isCredit && (
@@ -334,12 +349,15 @@ function EditAccountForm({
     {},
   );
   const isCredit = account.type === "credit";
+  const [currency, setCurrency] = useState<Currency>(
+    (state.values?.currency as Currency | undefined) ?? account.currency,
+  );
 
   return (
     <form action={formAction} className="flex flex-col gap-4" noValidate>
       <input type="hidden" name="id" value={account.id} />
       {state.error && <FormAlert tone="error">{state.error}</FormAlert>}
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-3">
         <FormField
           label="Nombre"
           name="name"
@@ -348,8 +366,12 @@ function EditAccountForm({
           error={state.fieldErrors?.name}
           required
         />
+        <CurrencySelect value={currency} onChange={setCurrency} />
         <FormField
-          label={isCredit ? "Deuda inicial (S/)" : "Saldo inicial (S/)"}
+          label={
+            (isCredit ? "Deuda inicial" : "Saldo inicial") +
+            ` (${CURRENCY_SYMBOL[currency]})`
+          }
           name="initialBalance"
           money
           inputMode="decimal"
@@ -366,6 +388,7 @@ function EditAccountForm({
       </div>
       <p className="text-xs text-zinc-500">
         El saldo actual se calcula a partir del saldo inicial más tus
+        movimientos. La moneda solo se puede cambiar si la cuenta aún no tiene
         movimientos.
       </p>
       <div className="flex gap-2">
@@ -377,5 +400,29 @@ function EditAccountForm({
         </Button>
       </div>
     </form>
+  );
+}
+
+function CurrencySelect({
+  value,
+  onChange,
+}: {
+  value: Currency;
+  onChange: (value: Currency) => void;
+}) {
+  return (
+    <SelectField
+      label="Moneda"
+      name="currency"
+      required
+      value={value}
+      onChange={(e) => onChange(e.target.value as Currency)}
+    >
+      {CURRENCIES.map((c) => (
+        <option key={c} value={c}>
+          {CURRENCY_LABEL[c]} ({CURRENCY_SYMBOL[c]})
+        </option>
+      ))}
+    </SelectField>
   );
 }

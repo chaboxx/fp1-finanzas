@@ -8,7 +8,7 @@ import { requireUser } from "@/lib/auth";
 import { fetchAll, generateDue, getCatalogs } from "@/lib/finance-data";
 import { resolvePeriod, summarize, values, type Params } from "@/lib/dashboard";
 import { todayISO, formatDayHeading } from "@/lib/dates";
-import { formatCents } from "@/lib/money";
+import { CURRENCIES, CURRENCY_LABEL, formatCents } from "@/lib/money";
 import { DashboardFilters } from "../_dashboard/filters";
 import { DeleteMovementButton } from "./delete-movement-button";
 const labels = {
@@ -93,7 +93,16 @@ async function Movements({ searchParams }: { searchParams: Promise<Params> }) {
         ].some((v) => v?.toLocaleLowerCase("es").includes(search)))
     );
   });
-  const totals = summarize(rows.filter((r) => r.occurred_on <= today));
+  const currencyOf = (accountId: string) =>
+    accountMap.get(accountId)?.currency ?? "PEN";
+  // Un bloque de totales por moneda: soles y dólares no se suman.
+  const executed = rows.filter((r) => r.occurred_on <= today);
+  const blocks = CURRENCIES.filter(
+    (c) => c === "PEN" || executed.some((r) => currencyOf(r.account_id) === c),
+  ).map((c) => ({
+    currency: c,
+    totals: summarize(executed.filter((r) => currencyOf(r.account_id) === c)),
+  }));
   const filterParams = {
     ...params,
     metrica:
@@ -113,33 +122,46 @@ async function Movements({ searchParams }: { searchParams: Promise<Params> }) {
         basePath="/movimientos"
       />
 
-      <div className="mb-6 grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <StatCard
-          tone="income"
-          label="Ingresos"
-          value={totals.income}
-          icon="arrow"
-        />
-        <StatCard
-          tone="expense"
-          label="Gastos"
-          value={totals.expense}
-          icon="wallet"
-        />
-        <StatCard
-          tone="investment"
-          label="Aportes a inversiones"
-          value={totals.invested}
-          icon="trend"
-        />
-        <StatCard
-          tone="balance"
-          label="Resultado"
-          value={totals.balance}
-          icon="list"
-          footnote="Incluye rescates; excluye transferencias y futuros"
-        />
-      </div>
+      {blocks.map(({ currency, totals }) => (
+        <section key={currency} className="mb-6">
+          {blocks.length > 1 && (
+            <h2 className="eyebrow mb-2">
+              En {CURRENCY_LABEL[currency].toLowerCase()}
+            </h2>
+          )}
+          <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+            <StatCard
+              tone="income"
+              label="Ingresos"
+              value={totals.income}
+              currency={currency}
+              icon="arrow"
+            />
+            <StatCard
+              tone="expense"
+              label="Gastos"
+              value={totals.expense}
+              currency={currency}
+              icon="wallet"
+            />
+            <StatCard
+              tone="investment"
+              label="Aportes a inversiones"
+              value={totals.invested}
+              currency={currency}
+              icon="trend"
+            />
+            <StatCard
+              tone="balance"
+              label="Resultado"
+              value={totals.balance}
+              currency={currency}
+              icon="list"
+              footnote="Incluye rescates; excluye transferencias y futuros"
+            />
+          </div>
+        </section>
+      ))}
       <form
         action="/movimientos"
         className="panel mb-6 flex flex-wrap items-end gap-3"
@@ -268,14 +290,20 @@ async function Movements({ searchParams }: { searchParams: Promise<Params> }) {
                             : r.type === "transfer"
                               ? ""
                               : "−"}
-                          {formatCents(Number(r.amount_cents))}
+                          {formatCents(
+                            Number(r.amount_cents),
+                            currencyOf(r.account_id),
+                          )}
                         </strong>
                         <DeleteMovementButton
                           id={r.id}
                           description={
                             (r.description || labels[r.type]) +
                             " · " +
-                            formatCents(Number(r.amount_cents)) +
+                            formatCents(
+                              Number(r.amount_cents),
+                              currencyOf(r.account_id),
+                            ) +
                             " · " +
                             date
                           }

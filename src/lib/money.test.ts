@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
-import { centsToInput, parseToCents } from "./money";
+import { centsToInput, formatCents, parseToCents } from "./money";
 
 it("formatea dos decimales sin redondear céntimos enteros", () => {
   for (const [cents, expected] of [
@@ -47,4 +47,16 @@ it("rechaza negativos, texto, comas, exponentes y más de dos decimales", () => 
     "90071992547409.92",
   ])
     assert.equal(parseToCents(input), null, input);
+});
+
+it("formatea cada moneda con su símbolo, igual que el formato peruano", () => {
+  const pen = new Intl.NumberFormat("es-PE", {
+    style: "currency",
+    currency: "PEN",
+    minimumFractionDigits: 2,
+  });
+  for (const cents of [0, 5, 150050, -150050, 123456789])
+    assert.equal(formatCents(cents), pen.format(cents / 100), String(cents));
+  assert.equal(formatCents(150050, "USD"), "US$\u00a01,500.50");
+  assert.equal(formatCents(-5, "USD"), "-US$\u00a00.05");
 });

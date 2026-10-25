@@ -35,7 +35,7 @@ async function Content({
 }) {
   const { supabase, userId } = await requireUser(),
     params = await searchParams;
-  const [catalogs, rules] = await Promise.all([
+  const [allCatalogs, rules] = await Promise.all([
     getCatalogs(supabase, userId),
     fetchAll((a, b) =>
       supabase
@@ -47,6 +47,18 @@ async function Content({
     ),
   ]);
   const editing = rules.find((r) => r.id === params.editar);
+  // Los recurrentes son solo en soles (decisión del usuario): ni las cuentas en
+  // dólares ni una cuenta por defecto en dólares se ofrecen.
+  const accounts = allCatalogs.accounts.filter((a) => a.currency === "PEN");
+  const catalogs = {
+    ...allCatalogs,
+    accounts,
+    defaultAccountId: accounts.some(
+      (a) => a.id === allCatalogs.defaultAccountId,
+    )
+      ? allCatalogs.defaultAccountId
+      : null,
+  };
   return (
     <div className="space-y-6">
       <div className="flex justify-end">

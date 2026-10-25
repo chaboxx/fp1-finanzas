@@ -51,7 +51,8 @@ async function BudgetContent({
     getBudgetData(supabase, month),
     getBudgetData(supabase, shiftMonth(month, -1)),
     getCatalogs(supabase, userId),
-    getReportRows(supabase, range.from, range.to),
+    // El presupuesto está en soles: los gastos en dólares no lo consumen.
+    getReportRows(supabase, range.from, range.to, "PEN"),
   ]);
   const rows = allRows.filter((r) => r.occurred_on <= todayISO()),
     totals = summarize(rows),
@@ -59,6 +60,12 @@ async function BudgetContent({
   return (
     <>
       <MonthNav month={month} path="/presupuesto" />
+      {catalogs.accounts.some((a) => a.currency !== "PEN") && (
+        <p className="mb-4 text-xs text-slate-400">
+          El presupuesto es en soles: tus gastos y aportes en dólares no lo
+          consumen.
+        </p>
+      )}
       <div className="mb-6 grid gap-3 sm:grid-cols-3">
         <StatCard
           tone="balance"

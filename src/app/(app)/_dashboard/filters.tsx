@@ -191,7 +191,9 @@ export function DashboardFilters({
         <MultiSelect
           label="Cuentas"
           name="cuenta"
-          options={accounts}
+          options={accounts.map((a) =>
+            a.currency === "PEN" ? a : { ...a, name: a.name + " (US$)" },
+          )}
           selected={selectedAccounts}
         />
         <MultiSelect

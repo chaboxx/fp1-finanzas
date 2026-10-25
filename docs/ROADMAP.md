@@ -25,9 +25,12 @@ Actualizado el 24 de octubre de 2026. Alcance funcional en [PLAN_MEJORA.md](PLAN
 | Navegación mensual | Presupuestos cambia de mes al seleccionarlo, sin botón adicional ni recarga del documento. Cuentas muestra iconos bancarios y los filtros usan flechas SVG coherentes. |
 | Montos | Campos monetarios compartidos: solo dígitos, punto y hasta dos decimales; sin negativos ni separadores de miles. Al salir se muestran dos decimales. Validación idéntica en el servidor, conservando las reglas de cero según la operación. |
 | Formularios y espacio | Calendarios al pulsar el campo completo; asteriscos en campos obligatorios, opcionales sin textos de autorrelleno, acceso rápido global solo con + y cuentas en tarjetas separadas. |
+| Dólares | Cuentas e inversiones en soles o dólares; gastos, ingresos, aportes y transferencias en la moneda de la cuenta; Resumen (tarjetas y gráficos), Movimientos, Cuentas e Inversiones separados por moneda; Presupuesto y Métricas en soles. Sin tipo de cambio. Script para marcar como dólares cuentas antiguas. Plan y versiones en [PLAN_USD.md](PLAN_USD.md). |
 | Producción | Actualizada el 25 de octubre de 2026 con la validación de montos; despliegue D4BSmeKYYaT65eEdh3TBsREJMTyg listo y comprobado. Publicada en [finanzas-app-eight-lyart.vercel.app](https://finanzas-app-eight-lyart.vercel.app), proyecto chaboxxs-projects/finanzas-app. Archivos de credenciales y pruebas excluidos de la publicación. |
 
 ## Activación pendiente fuera del repositorio
+
+- **Dólares:** ejecutar la migración `20261031000000_moneda_usd.sql` en el SQL Editor de Supabase **antes** de publicar el código nuevo (el código anterior sigue funcionando con la migración aplicada). Después, para cuentas que ya usabas para dólares: sin movimientos, cámbialas en Cuentas → Editar → Moneda; con montos escritos en dólares, `scripts/cuentas-a-dolares-1-vista-previa.sql` y luego `-2-convertir.sql`; si los convertiste a soles al registrar, crea una cuenta nueva en dólares y deshabilita la antigua.
 
 - En otras instalaciones, ejecutar la migración 20261029000000_financial_targets.sql si aún falta para activar Métricas (sin ella, la pestaña muestra un aviso en vez de fallar).
 - Para quitar las categorías predefinidas: ejecutar `scripts/categorias-predefinidas-1-vista-previa.sql`, después `scripts/categorias-predefinidas-2-eliminar.sql`, y aplicar la migración 20261030000000_sin_categorias_predefinidas.sql para que no vuelvan a crearse al registrar usuarios.
@@ -52,7 +55,8 @@ La verificación incluye cálculos y filtros puros, escenarios SQL y recorridos 
 
 - Metas de ahorro: usar el modelo existente, definir si son reservas virtuales o fondos vinculados a una cuenta, aportes/retiros y progreso.
 - Sincronización de brokers con referencias externas para evitar duplicados.
-- USD y conversión de monedas, PWA, importación de estados y subcategorías.
+- Dólares, más adelante y solo si hace falta: cambio de moneda dentro de la app (transferencias soles ↔ dólares) y metas en dólares. Recurrentes en dólares: no planificado.
+- PWA, importación de estados y subcategorías.
 
 ## Deuda conocida
 

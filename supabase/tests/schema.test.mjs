@@ -901,6 +901,165 @@ assert.equal(
 );
 console.log("PASS metas financieras por mes, validaciones y aislamiento por usuario");
 
+// --- Dólares (migración 20261031000000): la moneda es de la cuenta y nunca se mezcla ---
+const usd = "aaaaaaaa-0000-0000-0000-0000000000a1",
+  usd2 = "aaaaaaaa-0000-0000-0000-0000000000a2",
+  usdEmpty = "aaaaaaaa-0000-0000-0000-0000000000a3",
+  pen = "aaaaaaaa-0000-0000-0000-000000000002";
+await expectOk(
+  "crear cuentas en dólares",
+  A,
+  `insert into accounts (id, name, type, initial_balance_cents, currency) values
+   ('${usd}','Interbank USD','savings', 100000,'USD'),
+   ('${usd2}','Visa USD','credit', 0,'USD'),
+   ('${usdEmpty}','Caja USD','cash', 0,'USD')`,
+);
+assert.equal(
+  (await as(A, `select currency from accounts where id='${pen}'`)).rows[0].currency,
+  "PEN",
+  "las cuentas existentes quedan en soles",
+);
+await expectOk(
+  "gasto en dólares",
+  A,
+  `insert into transactions (type, amount_cents, category_id, account_id, description)
+   values ('expense', 10000, '${food}', '${usd}', 'Viaje')`,
+);
+await expectOk(
+  "transferencia entre cuentas en dólares",
+  A,
+  `insert into transactions (type, amount_cents, account_id, to_account_id) values ('transfer', 5000, '${usd}', '${usd2}')`,
+);
+await expectError(
+  "transferencia entre monedas distintas",
+  A,
+  `insert into transactions (type, amount_cents, account_id, to_account_id) values ('transfer', 5000, '${pen}', '${usd}')`,
+  "misma moneda",
+);
+await expectError(
+  "editar una transferencia para cruzar monedas",
+  A,
+  `update transactions set to_account_id = '${pen}' where type = 'transfer' and account_id = '${usd}'`,
+  "misma moneda",
+);
+assert.deepEqual(
+  (await as(A, `select balance_cents::integer b, currency from account_balances where account_id='${usd}'`)).rows[0],
+  { b: 100000 - 10000 - 5000, currency: "USD" },
+  "saldo en dólares: inicial − gasto − transferencia",
+);
+await expectOk(
+  "aporte a una inversión en dólares",
+  A,
+  `select public.save_investment_entry('invest',20000,'99999999-0000-0000-0000-0000000000a1',p_category=>'cccccccc-0000-0000-0000-000000000003',p_name=>'S&P 500 USD',p_account=>'${usd}',p_currency=>'USD')`,
+);
+const usdInvestment = (
+  await as(A, "select id, currency from investments where name='S&P 500 USD'")
+).rows[0];
+assert.equal(usdInvestment.currency, "USD");
+await expectError(
+  "aportar soles a una inversión en dólares",
+  A,
+  `select public.save_investment_entry('invest',100,'99999999-0000-0000-0000-0000000000a2',p_investment=>'${usdInvestment.id}',p_account=>'${pen}')`,
+  "misma moneda que la inversión",
+);
+await expectError(
+  "aporte en dólares sin cuenta cuando la cuenta por defecto está en soles",
+  A,
+  `select public.save_investment_entry('invest',100,'99999999-0000-0000-0000-0000000000a3',p_investment=>'${usdInvestment.id}')`,
+  "misma moneda que la inversión",
+);
+await expectOk(
+  "aportar con el mismo nombre en soles crea otra posición en soles",
+  A,
+  `select public.save_investment_entry('invest',100,'99999999-0000-0000-0000-0000000000a4',p_category=>'cccccccc-0000-0000-0000-000000000003',p_name=>'S&P 500 USD',p_account=>'${pen}')`,
+);
+assert.equal(
+  (await as(A, "select count(*)::integer n from investments where name='S&P 500 USD'")).rows[0].n,
+  2,
+);
+await expectError(
+  "recurrente en una cuenta en dólares",
+  A,
+  `insert into recurring_rules(type,amount_cents,description,category_id,account_id,start_on,next_run_on)
+   values('expense',100,'Netflix','${food}','${usd}','2026-01-01','2026-01-01')`,
+  "cuentas en soles",
+);
+await expectError(
+  "cambiar la moneda de una cuenta con movimientos",
+  A,
+  `update accounts set currency='PEN' where id='${usd}'`,
+  "moneda de una cuenta",
+);
+await expectOk(
+  "cambiar la moneda de una cuenta sin movimientos",
+  A,
+  `update accounts set currency='PEN' where id='${usdEmpty}'; update accounts set currency='USD' where id='${usdEmpty}'`,
+);
+await expectError(
+  "cambiar la moneda de una inversión con movimientos",
+  A,
+  `update investments set currency='PEN' where id='${usdInvestment.id}'`,
+  "moneda de una inversión",
+);
+const byCurrency = (
+  await as(
+    A,
+    `select currency, sum(expense_cents)::integer expense, sum(invested_cents)::integer invested
+     from monthly_summary where month = date_trunc('month', public.user_today()) group by currency order by currency`,
+  )
+).rows;
+assert.deepEqual(
+  byCurrency.find((r) => r.currency === "USD"),
+  { currency: "USD", expense: 10000, invested: 20000 },
+  "el resumen mensual separa los dólares",
+);
+const penFood = (
+  await as(
+    A,
+    `select coalesce(sum(amount_cents),0)::integer n from categorized_movements
+     where category_id='${food}' and currency='PEN' and type='expense'
+       and month = date_trunc('month', public.user_today()) and occurred_on <= public.user_today()`,
+  )
+).rows[0].n;
+await as(
+  A,
+  `select save_budget_plan(date_trunc('month', public.user_today())::date, 1000000, '[{"category_id":"${food}","percentage_bps":10000}]'::jsonb)`,
+);
+assert.equal(
+  (
+    await as(
+      A,
+      `select spent_cents::integer n from budget_plan_progress
+       where month = date_trunc('month', public.user_today()) and category_id='${food}'`,
+    )
+  ).rows[0].n,
+  penFood,
+  "el presupuesto (en soles) no cuenta gastos en dólares",
+);
+// Un recurrente sin cuenta cae en la cuenta por defecto; si está en dólares, no se genera.
+await as(A, `update profiles set default_account_id='${usd}'`);
+await as(
+  A,
+  `insert into recurring_rules(id,type,amount_cents,description,category_id,start_on,next_run_on)
+   values('ffffffff-0000-0000-0000-0000000000a1','expense',100,'Sin cuenta','${food}',public.user_today(),public.user_today())`,
+);
+await as(A, "select generate_recurring_transactions()");
+const usdRule = (
+  await as(
+    A,
+    `select last_error, (select count(*)::integer from transactions where recurring_rule_id = r.id) n
+     from recurring_rules r where id='ffffffff-0000-0000-0000-0000000000a1'`,
+  )
+).rows[0];
+assert.match(usdRule.last_error ?? "", /cuentas en soles/);
+assert.equal(usdRule.n, 0);
+await as(
+  A,
+  `update profiles set default_account_id='${pen}';
+   update recurring_rules set is_active=false where id='ffffffff-0000-0000-0000-0000000000a1'`,
+);
+console.log("PASS dólares: saldos, transferencias, inversiones, recurrentes, resumen y presupuesto por moneda");
+
 await db.exec(
   "reset role; create role service_role bypassrls; grant usage on schema public,auth to service_role; grant all on all tables in schema public to service_role; select set_config('request.jwt.claim.sub','',false); set role service_role;",
 );
