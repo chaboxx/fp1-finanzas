@@ -165,7 +165,7 @@ export class Persona {
   async crearCategoria(nombre: string, kind: CategoryKind, color = "#2a78d6") {
     const existing = await this.sql<{ id: string }>("select id from categories where kind = $1 and lower(name) = lower($2)", [kind, nombre]);
     if (existing.length) {
-      // Las categorías predeterminadas se crean al registrarse.
+      // Reutiliza una categoría que ya exista con ese nombre (por ejemplo, una predefinida antigua).
       this.libro.categorias.set(existing[0].id, { kind, nombre, activa: true });
       return existing[0].id;
     }
@@ -189,7 +189,7 @@ export class Persona {
 
   /**
    * Llena el formulario de movimiento. `monto` va como texto, tal como lo escribe
-   * una persona ("1,500.50", "15,50", "S/ 20"). Si `fecha` o `cuenta` quedan vacías,
+   * una persona ("1500.50", "15.5", "20"). Si `fecha` o `cuenta` quedan vacías,
    * el Libro aplica la misma regla que promete la app: hoy y la cuenta por defecto.
    */
   async registrar(m: {

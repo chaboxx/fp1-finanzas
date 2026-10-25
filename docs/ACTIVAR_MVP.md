@@ -70,7 +70,7 @@ Resumen, Movimientos e Inversiones muestran directamente Desde/Hasta y accesos r
 
 - Aplicación: https://finanzas-app-eight-lyart.vercel.app
 - Proyecto: chaboxxs-projects/finanzas-app.
-- Despliegue verificado: https://vercel.com/chaboxxs-projects/finanzas-app/ADUvPQFCw6Wu7HPp1knXXyHfP3Ju
+- Despliegue verificado: https://vercel.com/chaboxxs-projects/finanzas-app/D4BSmeKYYaT65eEdh3TBsREJMTyg
 - Se configuraron NEXT_PUBLIC_SUPABASE_URL y NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY para Production y Preview. No se publicaron archivos .env ni contraseñas locales.
 - .vercelignore excluye las carpetas de pruebas, resultados, documentación y SQL de la raíz. Conserva src/lib/supabase, que sí necesita la aplicación.
 - Comprobación remota: /login y /signup responden 200; / y /cuentas redirigen al acceso sin sesión; /auth/revision responde 404; formulario de acceso visible y sin errores del navegador.
@@ -81,3 +81,13 @@ La confirmación de nuevas cuentas por correo está activada en Supabase. No se 
 SUPABASE_SECRET_KEY y CRON_SECRET no están configuradas en producción: el trabajo diario con la app cerrada queda pendiente. La generación al entrar en la app o usar Procesar pendientes continúa disponible.
 
 Para publicar cambios desde esta misma carpeta vinculada: npx vercel@65.2.0 deploy --prod. El repositorio es https://github.com/chaboxx/fp1-finanzas, rama main. Vercel todavía usa despliegues desde la carpeta local; para publicar automáticamente al hacer push, conectar este repositorio desde la configuración del proyecto en Vercel.
+
+## 4. Quitar las categorías predefinidas (opcional)
+
+La migración 20261027000000 creó 14 categorías típicas por usuario. Para quitarlas:
+
+1. Respalda la base.
+2. Ejecuta [scripts/categorias-predefinidas-1-vista-previa.sql](../scripts/categorias-predefinidas-1-vista-previa.sql). Solo lee: muestra cuáles se borrarán y cuáles se conservan y por qué.
+3. Ejecuta [scripts/categorias-predefinidas-2-eliminar.sql](../scripts/categorias-predefinidas-2-eliminar.sql). Borra únicamente las que la app creó en bloque y que no se usan en movimientos, inversiones, recurrentes, presupuestos ni subcategorías. Las tuyas (aunque la migración las haya marcado) y las que tienen historial se conservan; si no quieres verlas, deshabilítalas desde Categorías. Los saldos no cambian.
+4. Aplica [20261030000000_sin_categorias_predefinidas.sql](../supabase/migrations/20261030000000_sin_categorias_predefinidas.sql) para que no vuelvan a crearse al registrar usuarios nuevos.
+5. Ejecuta [scripts/auditoria.sql](../scripts/auditoria.sql): todo debe seguir en OK.

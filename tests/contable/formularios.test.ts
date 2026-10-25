@@ -7,7 +7,7 @@ import { saveMovement } from "@/app/(app)/movimientos/actions";
 import { saveRecurring } from "@/app/(app)/movimientos/recurrentes/actions";
 import { saveInvestment } from "@/app/(app)/inversiones/actions";
 import { saveBudget } from "@/app/(app)/presupuesto/actions";
-import { setAccountActive } from "@/app/(app)/cuentas/actions";
+import { createAccount, updateAccount, setAccountActive } from "@/app/(app)/cuentas/actions";
 import { Persona } from "./app";
 import { createTestDb, createUser, dbToday } from "./db";
 import { cuadrar } from "./verificar";
@@ -48,14 +48,14 @@ describe("Formularios: errores humanos y protecciones", () => {
 
   const gasto = (extra: Record<string, string>) => ({ type: "expense", amount: "10", categoryId: id.comida, accountId: id.caja, occurredOn: "2026-01-10", ...extra });
 
-  it("acepta montos escritos de distintas formas y guarda el valor exacto en céntimos", async () => {
+  it("acepta enteros y hasta dos decimales con punto y guarda el valor exacto en céntimos", async () => {
     for (const [texto, cents] of [
-      ["1,500.50", 150050],
+      ["1500.50", 150050],
       ["1500.5", 150050],
-      ["S/ 20", 2000],
-      ["15,50", 1550],
+      ["20", 2000],
+      ["15.50", 1550],
       ["0.01", 1],
-      ["9,999,999.99", 999999999],
+      ["9999999.99", 999999999],
     ] as const) {
       const mov = await p.registrar({ tipo: "expense", monto: texto, fecha: "2026-01-05", cuenta: id.banco, categoria: id.comida, descripcion: texto });
       const [row] = await p.sql<{ amount_cents: number }>("select amount_cents from transactions where id = $1", [mov]);
@@ -64,7 +64,7 @@ describe("Formularios: errores humanos y protecciones", () => {
   });
 
   it("rechaza montos inválidos sin tocar nada", async () => {
-    for (const monto of ["", "abc", "0", "-5", "1.234", "12.345,00", "1,2,3"]) {
+    for (const monto of ["", "abc", "0", "-5", "1.234", "12.345,00", "1,2,3", "15,50", "1,500.50", "S/ 20", "+5", "1e3", " 10 "]) {
       await nadaCambia(gasto({ amount: monto }), `monto "${monto}"`);
     }
   });
@@ -75,6 +75,20 @@ describe("Formularios: errores humanos y protecciones", () => {
     await p.registrar({ tipo: "expense", monto: "0.20", fecha: "2026-01-06", cuenta: id.caja, categoria: id.comida });
     const [s] = await p.sql<{ balance_cents: number }>("select balance_cents from account_balances where account_id = $1", [id.caja]);
     assert.equal(s.balance_cents, antes - 30);
+  });
+
+  it("crear y editar cuentas rechaza montos inválidos sin cambiar saldos", async () => {
+    const before = await p.sql("select id, initial_balance_cents from accounts order by id");
+    for (const initialBalance of ["-10", "1,50", "1.234", "abc", "S/ 20"]) {
+      for (const [action, fields] of [
+        [createAccount, { name: "Inválida", type: "cash", initialBalance }],
+        [updateAccount, { id: id.caja, name: "Caja", initialBalance }],
+      ] as const) {
+        const result = await p.enviar(action, fields);
+        assert.ok(!result.ok && result.fieldErrors?.initialBalance, initialBalance);
+      }
+    }
+    assert.deepEqual(await p.sql("select id, initial_balance_cents from accounts order by id"), before);
   });
 
   it("rechaza formas inválidas: sin categoría, transferencia a la misma cuenta o sin destino", async () => {

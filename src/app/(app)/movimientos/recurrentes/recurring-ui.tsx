@@ -84,6 +84,7 @@ export function RecurringForm({
           <FormField
             label="Monto (S/)"
             name="amount"
+            money
             inputMode="decimal"
             defaultValue={rule ? centsToInput(rule.amount_cents) : ""}
             required

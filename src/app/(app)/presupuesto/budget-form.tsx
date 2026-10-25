@@ -3,6 +3,7 @@ import { useActionState, useState, useTransition } from "react";
 import { Card } from "@/components/ui";
 import { SubmitButton, FormAlert } from "@/components/form-field";
 import { Icon } from "@/components/icons";
+import { MoneyInput } from "@/components/money-input";
 import { RequiredMark } from "@/components/required-mark";
 import type { Category } from "@/lib/types";
 import type { BudgetData } from "@/lib/finance-data";
@@ -119,14 +120,14 @@ export function BudgetForm({
           Total previsto mensual (S/)
           <RequiredMark />
         </label>
-        <input
+        <MoneyInput
           id="budget-total"
           className="field mt-2 max-w-sm py-4 text-2xl font-semibold"
           name="total"
           value={total}
           onChange={(e) => setTotal(e.target.value)}
           inputMode="decimal"
-          placeholder="5,000.00"
+          placeholder="5000.00"
           required
         />
         <div className="mt-5 grid grid-cols-2 gap-4 text-xs sm:grid-cols-3">

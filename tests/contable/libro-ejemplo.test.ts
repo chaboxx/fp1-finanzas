@@ -33,7 +33,7 @@ describe("Libro de ejemplo: marzo 2025 calculado a mano", () => {
     p = new Persona(db, await createUser(db, "ana@ejemplo.com"), await dbToday(db));
 
     id.efectivo = await p.crearCuenta("Efectivo", "cash", "200");
-    id.bcp = await p.crearCuenta("BCP Débito", "debit", "3,000.00");
+    id.bcp = await p.crearCuenta("BCP Débito", "debit", "3000.00");
     id.visa = await p.crearCuenta("Visa", "credit", "500");
     id.ahorro = await p.crearCuenta("Ahorro", "savings", "10000");
 
@@ -43,10 +43,10 @@ describe("Libro de ejemplo: marzo 2025 calculado a mano", () => {
     id.ocio = await p.crearCategoria("Entretenimiento", "expense");
     id.fondos = await p.crearCategoria("Fondos mutuos", "investment");
 
-    await p.registrar({ tipo: "income", monto: "6,500.00", fecha: "2025-03-01", cuenta: id.bcp, categoria: id.sueldo, descripcion: "Sueldo" });
+    await p.registrar({ tipo: "income", monto: "6500.00", fecha: "2025-03-01", cuenta: id.bcp, categoria: id.sueldo, descripcion: "Sueldo" });
     await p.registrar({ tipo: "expense", monto: "1800", fecha: "2025-03-01", cuenta: id.bcp, categoria: id.renta, descripcion: "Renta" });
-    await p.registrar({ tipo: "expense", monto: "45,50", fecha: "2025-03-05", categoria: id.comida, descripcion: "Almuerzo" });
-    await p.registrar({ tipo: "expense", monto: "S/ 120", fecha: "2025-03-10", cuenta: id.visa, categoria: id.ocio, descripcion: "Cine" });
+    await p.registrar({ tipo: "expense", monto: "45.50", fecha: "2025-03-05", categoria: id.comida, descripcion: "Almuerzo" });
+    await p.registrar({ tipo: "expense", monto: "120", fecha: "2025-03-10", cuenta: id.visa, categoria: id.ocio, descripcion: "Cine" });
     await p.registrar({ tipo: "transfer", monto: "620", fecha: "2025-03-15", cuenta: id.bcp, hacia: id.visa, descripcion: "Pago Visa" });
     await p.registrar({ tipo: "transfer", monto: "1000", fecha: "2025-03-20", cuenta: id.bcp, hacia: id.ahorro, descripcion: "A mi ahorro" });
     id.inversion = await p.invertir({ operacion: "invest", monto: "500", categoria: id.fondos, nombre: "Fondo BCP", cuenta: id.bcp, fecha: "2025-03-25" });

@@ -72,6 +72,7 @@ export function CreateAccountForm({
               type === "credit" ? "Deuda actual (S/)" : "Saldo inicial (S/)"
             }
             name="initialBalance"
+            money
             inputMode="decimal"
             placeholder="0.00"
             defaultValue={state.values?.initialBalance}
@@ -350,6 +351,7 @@ function EditAccountForm({
         <FormField
           label={isCredit ? "Deuda inicial (S/)" : "Saldo inicial (S/)"}
           name="initialBalance"
+          money
           inputMode="decimal"
           defaultValue={
             state.values?.initialBalance ??

@@ -26,6 +26,7 @@ Las pruebas de todo lo que se describe aquí están en
 | `20261026000000_category_palette.sql` | Migración de datos: colores de categorías a la paleta accesible |
 | `20261027000000_finance_mvp.sql` | Presupuestos porcentuales, operaciones atómicas de inversión, predeterminadas, generador recurrente y saldos ejecutados |
 | `20261028000000_profile_theme.sql` | Tema por usuario y consolidación de reglas para instalaciones del MVP anterior |
+| `20261030000000_sin_categorias_predefinidas.sql` | Al registrarse ya no se crean categorías predefinidas (se elimina `seed_categories_for_user`). Borrar las existentes: `scripts/categorias-predefinidas-*.sql` |
 | `20261029000000_financial_targets.sql` | Metas financieras por mes (`financial_targets`) y `accounts.in_emergency_fund` para la pestaña Métricas |
 
 Las migraciones **nunca se editan** una vez aplicadas: los cambios van en una migración nueva.

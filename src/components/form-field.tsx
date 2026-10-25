@@ -1,24 +1,31 @@
 import type { InputHTMLAttributes } from "react";
 import { DateInput } from "./date-input";
+import { PasswordInput } from "./password-input";
+import { MoneyInput } from "./money-input";
 import { RequiredMark } from "./required-mark";
 
 type FormFieldProps = InputHTMLAttributes<HTMLInputElement> & {
   label: string;
   name: string;
   error?: string;
+  money?: boolean;
 };
 
 export function FormField({
   label,
   name,
   error,
+  money = false,
   ...inputProps
 }: FormFieldProps) {
   const errorId = `${name}-error`;
-  const Input =
-    inputProps.type === "date" || inputProps.type === "month"
+  const Input = money
+    ? MoneyInput
+    : inputProps.type === "date" || inputProps.type === "month"
       ? DateInput
-      : "input";
+      : inputProps.type === "password"
+        ? PasswordInput
+        : "input";
   return (
     <div className="flex flex-col gap-1.5">
       <label htmlFor={name} className="text-sm font-medium">

@@ -1,5 +1,5 @@
 // Simulación: dos personas usan la app día a día durante ~2.5 años, llenando los
-// formularios reales con montos escritos de muchas formas, transferencias, pagos de
+// formularios reales con montos enteros o con punto decimal, transferencias, pagos de
 // tarjeta, inversiones, recurrentes, presupuestos, ediciones, borrados, dobles clics,
 // categorías renombradas y deshabilitadas. Al cierre de cada mes se verifica que todo
 // cuadre contra el Libro independiente.
@@ -49,8 +49,7 @@ function azar(seed: number) {
 function escribir(cents: number, r: ReturnType<typeof azar>) {
   const soles = (cents / 100).toFixed(2);
   const [entero, dec] = soles.split(".");
-  const miles = entero.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-  return r.uno([soles, `${miles}.${dec}`, `S/ ${soles}`, `${entero},${dec}`, dec === "00" ? entero : soles]);
+  return r.uno([soles, dec === "00" ? entero : soles, dec.endsWith("0") ? `${entero}.${dec[0]}` : soles]);
 }
 
 // Calendario esperado de una regla recurrente, calculado aquí (no con el código de la app).
@@ -93,7 +92,7 @@ describe(`Simulación contable de ~2.5 años (semilla ${SEMILLA})`, () => {
 
     // --- Ana: cuentas y categorías ---
     c.efectivo = await ana.crearCuenta("Efectivo", "cash", "300");
-    c.bcp = await ana.crearCuenta("BCP Débito", "debit", "2,500.00");
+    c.bcp = await ana.crearCuenta("BCP Débito", "debit", "2500.00");
     c.interbank = await ana.crearCuenta("Interbank", "debit", "");
     c.visa = await ana.crearCuenta("Visa", "credit", "350.75");
     c.ahorro = await ana.crearCuenta("Ahorro", "savings", "5000");
@@ -249,7 +248,7 @@ describe(`Simulación contable de ~2.5 años (semilla ${SEMILLA})`, () => {
 
         // Beto usa la app a su ritmo (su dinero nunca debe afectar el de Ana).
         if (r.si(0.25)) await beto.registrar({ tipo: "expense", monto: escribir(r.entre(500, 6000), r), fecha: dia, cuenta: r.uno([c.betoCaja, c.betoBanco]), categoria: c.betoComida });
-        if (dia.endsWith("-15")) await beto.registrar({ tipo: "income", monto: "1,200.00", fecha: dia, cuenta: c.betoBanco, categoria: c.betoSueldo });
+        if (dia.endsWith("-15")) await beto.registrar({ tipo: "income", monto: "1200.00", fecha: dia, cuenta: c.betoBanco, categoria: c.betoSueldo });
       }
 
       // Valorización de fin de mes de cada inversión.

@@ -5,6 +5,7 @@ import { startTransition, useActionState, useRef, useState } from "react";
 import { FormAlert, SubmitButton } from "@/components/form-field";
 import { Card } from "@/components/ui";
 import { DateInput } from "@/components/date-input";
+import { MoneyInput } from "@/components/money-input";
 import { RequiredMark } from "@/components/required-mark";
 import type { ActionState } from "@/lib/action-state";
 import { centsToInput } from "@/lib/money";
@@ -181,7 +182,7 @@ export function MovementForm({
             <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-lg text-zinc-500">
               S/
             </span>
-            <input
+            <MoneyInput
               id="amount"
               name="amount"
               required

@@ -168,10 +168,10 @@ describe("outflowTrend", () => {
 });
 
 describe("parseToCents", () => {
-  it("acepta formatos comunes en Perú", () => {
-    assert.equal(parseToCents("1,500.50"), 150050);
-    assert.equal(parseToCents("15,50"), 1550);
-    assert.equal(parseToCents("S/ 20"), 2000);
+  it("acepta montos sin signo con punto decimal", () => {
+    assert.equal(parseToCents("1500.50"), 150050);
+    assert.equal(parseToCents("15.5"), 1550);
+    assert.equal(parseToCents("20"), 2000);
     assert.equal(parseToCents("abc"), null);
   });
 });

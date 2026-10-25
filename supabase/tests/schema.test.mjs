@@ -39,33 +39,19 @@ const B = "22222222-2222-2222-2222-222222222222";
 await db.exec(
   `insert into auth.users (id, email) values ('${A}','a@x.com'), ('${B}','b@x.com');`,
 );
+// Decisión del usuario (migración 20261030000000): al registrarse no se crean categorías.
 const seeds = await db.query(
   "select count(*)::integer n from public.categories where user_id=$1",
   [A],
 );
-if (seeds.rows[0].n !== 14)
-  throw new Error("Faltan categorías predeterminadas");
-await db.exec(
-  "update public.categories set name='Mi comida',is_active=false where user_id='" +
-    A +
-    "' and seed_key='food'; select public.seed_categories_for_user('" +
-    A +
-    "');",
+if (seeds.rows[0].n !== 0)
+  throw new Error("No deberían crearse categorías al registrarse");
+const seedFn = await db.query(
+  "select count(*)::integer n from pg_proc where proname='seed_categories_for_user'",
 );
-const preserved = await db.query(
-  "select name,is_active from public.categories where user_id=$1 and seed_key='food'",
-  [A],
-);
-if (
-  preserved.rows[0].name !== "Mi comida" ||
-  preserved.rows[0].is_active !== false
-)
-  throw new Error("La inicialización sobrescribió una categoría personalizada");
-// Los fixtures originales usan IDs fijos. Limpiar como propietario solo en esta base en memoria.
-await db.exec("delete from public.categories;");
-console.log(
-  "PASS predeterminadas por usuario, inicialización repetible y personalización conservada",
-);
+if (seedFn.rows[0].n !== 0)
+  throw new Error("La función de categorías predefinidas debía eliminarse");
+console.log("PASS al registrarse solo se crea el perfil, sin categorías predefinidas");
 
 let failures = 0;
 async function as(user, sql) {

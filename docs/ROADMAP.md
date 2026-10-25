@@ -14,21 +14,23 @@ Actualizado el 24 de octubre de 2026. Alcance funcional en [PLAN_MEJORA.md](PLAN
 | Inversiones | Pestaña propia, categorías simples, aportes y rescates atómicos, valorizaciones, posiciones iniciales sin descontar otra vez, edición y desactivación, gráficos e historial. |
 | Métricas | Pestaña propia: 4 indicadores con meta y estado (ahorro, ritmo del presupuesto, cumplimiento de inversión, fondo de emergencia), proyección al cierre del mes sin extrapolar gastos fijos, comparaciones por categoría contra el promedio de 3 meses a la misma altura del mes, historial de 6 meses con rachas y metas editables vigentes desde un mes. |
 | Presupuestos | Total mensual previsto + porcentajes; montos derivados, avance, exceso, sin asignación, copia del mes anterior, alertas en Resumen y comparación con ingreso real sin alterar la base. |
-| Categorías | Predeterminadas por usuario mediante migración y registro; crear propias, renombrar, color, desactivar/reactivar. Historial conservado. |
+| Categorías | Sin predefinidas para usuarios nuevos (migración 20261030000000; las existentes se quitan con `scripts/categorias-predefinidas-*.sql`); crear propias, renombrar, color, desactivar/reactivar. Historial conservado. |
 | Movimientos | Búsqueda y filtros, enlaces desde gráficos y cuentas, identificación de aportes/rescates, edición y eliminación con confirmación y manejo de errores. |
 | Recurrentes | Ingresos, gastos y transferencias; crear/editar, pausar/reactivar, generación de pendientes, calendario anclado, recuperación tras errores y ruta diaria protegida. |
-| Acceso | Registro e inicio de sesión existentes con email y contraseña. La sesión estándar de Supabase no se cambia. |
+| Acceso | Registro e inicio de sesión con email y contraseña. Cada campo de contraseña, incluida la confirmación del registro, tiene un botón de ojo para mostrarla u ocultarla de forma independiente; empieza oculta. La sesión estándar de Supabase no se cambia. |
 | Calidad | Tipos de base generados desde las migraciones, errores en español, pruebas de dominio y SQL, revisión automatizada en navegador y flujo de CI. |
 | Segunda revisión de UI | Desde/Hasta directos, accesos rápidos, casillas Todas, buscador sobre el historial, tarjetas con color semántico y altas/transferencias en diálogos. |
 | Perfil | Ruta propia, nombre, claro por defecto y opciones oscuro/sistema; vista previa local y persistencia por usuario al aplicar la migración 20261028000000. |
 | Exploración de fechas | Arrastrar un tramo del gráfico muestra Inicio/Fin en el recuadro y cambia el rango global, sus tarjetas y los campos Desde/Hasta. Las fechas manuales sustituyen accesos rápidos; limpiar selecciones conserva el período. |
 | Navegación mensual | Presupuestos cambia de mes al seleccionarlo, sin botón adicional ni recarga del documento. Cuentas muestra iconos bancarios y los filtros usan flechas SVG coherentes. |
+| Montos | Campos monetarios compartidos: solo dígitos, punto y hasta dos decimales; sin negativos ni separadores de miles. Al salir se muestran dos decimales. Validación idéntica en el servidor, conservando las reglas de cero según la operación. |
 | Formularios y espacio | Calendarios al pulsar el campo completo; asteriscos en campos obligatorios, opcionales sin textos de autorrelleno, acceso rápido global solo con + y cuentas en tarjetas separadas. |
-| Producción | Publicada en [finanzas-app-eight-lyart.vercel.app](https://finanzas-app-eight-lyart.vercel.app), proyecto chaboxxs-projects/finanzas-app. Archivos de credenciales y pruebas excluidos de la publicación. |
+| Producción | Actualizada el 25 de octubre de 2026 con la validación de montos; despliegue D4BSmeKYYaT65eEdh3TBsREJMTyg listo y comprobado. Publicada en [finanzas-app-eight-lyart.vercel.app](https://finanzas-app-eight-lyart.vercel.app), proyecto chaboxxs-projects/finanzas-app. Archivos de credenciales y pruebas excluidos de la publicación. |
 
 ## Activación pendiente fuera del repositorio
 
 - En otras instalaciones, ejecutar la migración 20261029000000_financial_targets.sql si aún falta para activar Métricas (sin ella, la pestaña muestra un aviso en vez de fallar).
+- Para quitar las categorías predefinidas: ejecutar `scripts/categorias-predefinidas-1-vista-previa.sql`, después `scripts/categorias-predefinidas-2-eliminar.sql`, y aplicar la migración 20261030000000_sin_categorias_predefinidas.sql para que no vuelvan a crearse al registrar usuarios.
 - La comprobación de estructura de solo lectura del despliegue encontró budget_plans, profiles.theme y financial_targets disponibles. Para otras instalaciones, seguir las [instrucciones de migración](ACTIVAR_MVP.md).
 - Comprobar las pantallas privadas con una sesión real en producción; la revisión remota sin sesión verificó acceso/registro, redirección de rutas privadas y ausencia de la página temporal de pruebas.
 - Comprobar en Supabase la URL de producción y la redirección de confirmación por correo; esta sesión no tiene acceso administrativo a esa configuración.

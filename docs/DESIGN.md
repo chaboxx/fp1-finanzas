@@ -75,6 +75,8 @@ El patrón de selección está documentado en el [ejemplo oficial de Recharts](h
 
 ### Convenciones de formularios
 
+- MoneyInput restringe los campos monetarios a dígitos y un punto con hasta dos decimales, y completa los dos decimales al salir. No transforma pegados inválidos en otro monto. parseToCents aplica el mismo formato sin negativos en el servidor; la deuda de crédito se ingresa positiva y se guarda con su signo contable.
+
 - DateInput conserva los selectores nativos de día/mes y la edición por teclado. Solicita showPicker al pulsar cualquier parte del campo; los navegadores sin soporte conservan su interacción nativa.
 - RequiredMark acompaña las etiquetas obligatorias y el atributo required comunica la misma condición a las ayudas de accesibilidad. Los campos opcionales no llevan asterisco ni explicaciones de autorrelleno; se conservan sus valores por defecto actuales en el servidor.
 - El acceso rápido global de movimientos muestra solo el icono +, con nombre accesible y título. Cada cuenta ocupa una tarjeta propia con 16 px de separación vertical.

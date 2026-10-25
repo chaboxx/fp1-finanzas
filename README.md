@@ -13,7 +13,7 @@ Finanzas personales en soles, para dos usuarios con datos separados. Next.js 16,
 | Inversiones | Categorías simples y posiciones; aportes, rescates, valorizaciones y saldos iniciales; gráficos e historial. Un aporte descuenta una sola vez y consume presupuesto de inversión. |
 | Presupuestos | Total previsto por mes, distribución por porcentajes, avance/exceso, dinero sin asignar y copia del mes anterior. El ingreso real no cambia la base prevista. |
 | Cuentas | Efectivo, débito, crédito y ahorro; cuenta predeterminada; dinero, deuda y saldos a favor; transferencias e historial. |
-| Categorías | Predeterminadas por usuario, personalizadas, nombre, color y desactivación/reactivación sin perder historial. |
+| Categorías | Cada persona crea las suyas (sin predefinidas), personalizadas, nombre, color y desactivación/reactivación sin perder historial. |
 | Recurrentes | Desde Movimientos: sueldo, renta, suscripciones y transferencias; calendario anclado, pausa, errores recuperables y generación sin duplicados. |
 | Acceso | Registro, email/contraseña y sesión estándar de Supabase. |
 | Perfil | Nombre y tema claro, oscuro o del sistema, con vista previa y preferencia por usuario. Claro por defecto. |
@@ -24,7 +24,7 @@ Metas de ahorro, brokers automáticos, USD, subcategorías y PWA quedan para otr
 
 Cada instalación debe tener las migraciones aplicadas en orden. Durante el despliegue se comprobó que la base actual ya tiene budget_plans, profiles.theme y financial_targets; no se modificaron sus datos.
 
-Para actualizar otra instalación, sigue [ACTIVAR_MVP.md](docs/ACTIVAR_MVP.md): respaldo y reporte previo de solo lectura. Si solo tiene Inversiones/Presupuestos, aplica [20261028000000_profile_theme.sql](supabase/migrations/20261028000000_profile_theme.sql) y [20261029000000_financial_targets.sql](supabase/migrations/20261029000000_financial_targets.sql) (pestaña Métricas). Para una base anterior, aplica primero la migración 20261027000000. Los movimientos y presupuestos fijos se conservan; no se reclasifican inversiones por el nombre.
+Para actualizar otra instalación, sigue [ACTIVAR_MVP.md](docs/ACTIVAR_MVP.md): respaldo y reporte previo de solo lectura. Si solo tiene Inversiones/Presupuestos, aplica [20261028000000_profile_theme.sql](supabase/migrations/20261028000000_profile_theme.sql) y [20261029000000_financial_targets.sql](supabase/migrations/20261029000000_financial_targets.sql) (pestaña Métricas). Para una base anterior, aplica primero la migración 20261027000000. Si no quieres categorías predefinidas, sigue la sección 4 de ACTIVAR_MVP.md. Los movimientos y presupuestos fijos se conservan; no se reclasifican inversiones por el nombre.
 
 ## Instalar desde cero
 

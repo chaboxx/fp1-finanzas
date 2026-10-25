@@ -48,7 +48,7 @@ it("el dinero se convierte exactamente y rechaza enteros fuera de rango", () => 
   assert.equal(parseToCents("0.29"), 29);
   assert.equal(parseToCents("1,2.34"), null);
   assert.equal(parseToCents("1,2,3"), null);
-  assert.equal(parseToCents("-15,50"), -1550);
+  assert.equal(parseToCents("-15,50"), null);
   assert.equal(parseToCents("900719925474099.99"), null);
 });
 it("rescates y transferencias tienen su efecto sin duplicar egresos", () => {

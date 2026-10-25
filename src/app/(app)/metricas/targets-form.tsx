@@ -42,6 +42,7 @@ export function TargetsForm({ month, targets, accounts }: { month: string; targe
         <FormField
           label="Inversión mensual (S/)"
           name="monthlyInvestment"
+          money
           inputMode="decimal"
           placeholder="0 = sin meta"
           defaultValue={

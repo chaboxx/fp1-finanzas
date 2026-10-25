@@ -187,6 +187,7 @@ export function InvestmentForm({
                 : "Monto (S/)"
             }
             name="amount"
+            money
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             inputMode="decimal"
@@ -228,6 +229,7 @@ export function InvestmentForm({
             <FormField
               label="Capital aportado antes de usar la app"
               name="initialCapital"
+              money
               inputMode="decimal"
             />
           ) : (

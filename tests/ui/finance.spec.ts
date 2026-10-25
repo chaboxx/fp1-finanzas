@@ -1,4 +1,86 @@
 import { test, expect } from "@playwright/test";
+
+test("los montos bloquean texto, negativos y decimales extra sin alterar el valor", async ({
+  page,
+}) => {
+  await page.goto("/auth/revision");
+  await page
+    .getByRole("button", { name: "Nuevo movimiento", exact: true })
+    .click();
+  const amount = page.getByRole("dialog").locator('input[name="amount"]');
+  await amount.fill("12.34");
+  for (const invalid of [
+    "abc",
+    "-10",
+    "+10",
+    "15,50",
+    "1,500.50",
+    "1e3",
+    "12.345",
+    "1.2.3",
+  ]) {
+    await amount.fill(invalid);
+    await expect(amount).toHaveValue("12.34");
+  }
+  await amount.press("End");
+  await amount.pressSequentially("a-5");
+  await expect(amount).toHaveValue("12.34");
+  // El pegado inválido se rechaza completo; nunca se le quita el signo.
+  await amount.evaluate((input) => {
+    const data = new DataTransfer();
+    data.setData("text/plain", "-99");
+    const event = new ClipboardEvent("paste", {
+      clipboardData: data,
+      bubbles: true,
+      cancelable: true,
+    });
+    if (input.dispatchEvent(event))
+      throw new Error("Se permitió pegar un monto negativo");
+  });
+  await expect(amount).toHaveValue("12.34");
+  await amount.fill("25.2");
+  await amount.press("Tab");
+  await expect(amount).toHaveValue("25.20");
+  await amount.fill(".22");
+  await amount.press("Tab");
+  await expect(amount).toHaveValue("0.22");
+  await page.screenshot({
+    path: "test-results/monto-validado.png",
+    fullPage: true,
+  });
+});
+
+test("cuentas, inversiones, recurrentes y presupuesto usan la restricción monetaria", async ({
+  page,
+}) => {
+  for (const [screen, button, fields] of [
+    ["cuentas", "Crear cuenta", ["initialBalance"]],
+    ["inversiones", "Saldo inicial", ["amount", "initialCapital"]],
+    ["recurrentes", "", ["amount"]],
+    ["presupuesto", "Editar presupuesto", ["total"]],
+  ] as const) {
+    await page.goto(`/auth/revision?screen=${screen}`);
+    if (button)
+      await page.getByRole("button", { name: button, exact: true }).click();
+    for (const name of fields) {
+      const input = page.locator(`input[name="${name}"]:visible`);
+      await input.fill("18");
+      await input.press("Tab");
+      await expect(input).toHaveValue("18.00");
+      await input.fill("-9");
+      await expect(input).toHaveValue("18.00");
+      await input.fill("");
+      await input.pressSequentially("0.019abc");
+      await expect(input).toHaveValue("0.01");
+    }
+    if (screen === "cuentas") {
+      const input = page.locator('input[name="initialBalance"]:visible');
+      await input.evaluate((el: HTMLInputElement) => el.form!.reset());
+      await input.fill("-10");
+      await expect(input).toHaveValue("");
+    }
+  }
+});
 test("los campos de fecha y mes abren el calendario al pulsar el cuerpo del campo", async ({
   page,
 }) => {
