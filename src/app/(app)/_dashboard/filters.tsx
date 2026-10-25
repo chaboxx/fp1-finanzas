@@ -159,6 +159,7 @@ export function DashboardFilters({
           "acumulado",
           "tipo",
           "buscar",
+          "moneda",
         ].map((k) =>
           typeof params[k] === "string" ? (
             <input key={k} type="hidden" name={k} value={params[k] as string} />

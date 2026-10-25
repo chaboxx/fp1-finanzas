@@ -8,10 +8,14 @@ import { requireUser } from "@/lib/auth";
 import { fetchAll, generateDue, getCatalogs } from "@/lib/finance-data";
 import { resolvePeriod, summarize, values, type Params } from "@/lib/dashboard";
 import { todayISO, formatDayHeading } from "@/lib/dates";
-import { CURRENCIES, CURRENCY_LABEL, formatCents } from "@/lib/money";
+import { currencyParam, formatCents } from "@/lib/money";
+import { CurrencyHeading } from "@/components/currency-toggle";
 import { DashboardFilters } from "../_dashboard/filters";
 import { DeleteMovementButton } from "./delete-movement-button";
-import { MovementSearch, movementTypeLabels as labels } from "./movement-search";
+import {
+  MovementSearch,
+  movementTypeLabels as labels,
+} from "./movement-search";
 export default function MovementsPage({
   searchParams,
 }: PageProps<"/movimientos">) {
@@ -89,14 +93,14 @@ async function Movements({ searchParams }: { searchParams: Promise<Params> }) {
   });
   const currencyOf = (accountId: string) =>
     accountMap.get(accountId)?.currency ?? "PEN";
-  // Un bloque de totales por moneda: soles y dólares no se suman.
+  // Las tarjetas muestran la moneda elegida (soles y dólares no se suman); los
+  // aportes, siempre ambas. La lista de abajo muestra todos los movimientos.
   const executed = rows.filter((r) => r.occurred_on <= today);
-  const blocks = CURRENCIES.filter(
-    (c) => c === "PEN" || executed.some((r) => currencyOf(r.account_id) === c),
-  ).map((c) => ({
-    currency: c,
-    totals: summarize(executed.filter((r) => currencyOf(r.account_id) === c)),
-  }));
+  const multi = catalogs.accounts.some((a) => a.currency === "USD");
+  const currency = multi ? currencyParam(params.moneda) : "PEN";
+  const totalsIn = (c: "PEN" | "USD") =>
+    summarize(executed.filter((r) => currencyOf(r.account_id) === c));
+  const totals = totalsIn(currency);
   const filterParams = {
     ...params,
     metrica:
@@ -116,46 +120,48 @@ async function Movements({ searchParams }: { searchParams: Promise<Params> }) {
         basePath="/movimientos"
       />
 
-      {blocks.map(({ currency, totals }) => (
-        <section key={currency} className="mb-6">
-          {blocks.length > 1 && (
-            <h2 className="eyebrow mb-2">
-              En {CURRENCY_LABEL[currency].toLowerCase()}
-            </h2>
-          )}
-          <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-            <StatCard
-              tone="income"
-              label="Ingresos"
-              value={totals.income}
-              currency={currency}
-              icon="arrow"
-            />
-            <StatCard
-              tone="expense"
-              label="Gastos"
-              value={totals.expense}
-              currency={currency}
-              icon="wallet"
-            />
-            <StatCard
-              tone="investment"
-              label="Aportes a inversiones"
-              value={totals.invested}
-              currency={currency}
-              icon="trend"
-            />
-            <StatCard
-              tone="balance"
-              label="Resultado"
-              value={totals.balance}
-              currency={currency}
-              icon="list"
-              footnote="Incluye rescates; excluye transferencias y futuros"
-            />
-          </div>
-        </section>
-      ))}
+      {multi && (
+        <CurrencyHeading
+          params={params}
+          current={currency}
+          basePath="/movimientos"
+        />
+      )}
+      <div className="mb-6 grid grid-cols-2 gap-3 xl:grid-cols-4">
+        <StatCard
+          tone="income"
+          label="Ingresos"
+          value={totals.income}
+          currency={currency}
+          icon="arrow"
+        />
+        <StatCard
+          tone="expense"
+          label="Gastos"
+          value={totals.expense}
+          currency={currency}
+          icon="wallet"
+        />
+        <StatCard
+          tone="investment"
+          label="Aportes a inversiones"
+          value={multi ? totalsIn("PEN").invested : totals.invested}
+          also={
+            multi
+              ? { value: totalsIn("USD").invested, currency: "USD" }
+              : undefined
+          }
+          icon="trend"
+        />
+        <StatCard
+          tone="balance"
+          label="Resultado"
+          value={totals.balance}
+          currency={currency}
+          icon="list"
+          footnote="Incluye rescates; excluye transferencias y futuros"
+        />
+      </div>
       <MovementSearch params={params} />
       {!rows.length ? (
         <Card className="py-12 text-center">

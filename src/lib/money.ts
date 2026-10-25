@@ -13,6 +13,10 @@ export const CURRENCY_LABEL: Record<Currency, string> = {
   USD: "Dólares",
 };
 
+// Moneda elegida en la URL (?moneda=USD); cualquier otro valor es soles.
+export const currencyParam = (value: unknown): Currency =>
+  value === "USD" ? "USD" : "PEN";
+
 const number = new Intl.NumberFormat("es-PE", {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,

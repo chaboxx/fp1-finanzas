@@ -33,6 +33,18 @@ const tones: Record<Tone, { panel: string; icon: string; value: string }> = {
     value: "text-blue-700 dark:text-blue-300",
   },
 };
+// "US$" y el signo alargan el monto: se achica en vez de partirse en dos líneas.
+function amountSize(text: string, currency: Currency) {
+  const width = text.length + (currency === "USD" ? 1 : 0);
+  return width > 14
+    ? " text-lg lg:text-xl"
+    : width > 11
+      ? " text-xl lg:text-2xl"
+      : width > 9
+        ? " text-[22px] lg:text-[28px]"
+        : "";
+}
+
 export function StatCard({
   label,
   value,
@@ -42,6 +54,7 @@ export function StatCard({
   footnote,
   emphasis = false,
   tone,
+  also,
 }: {
   label: string;
   value: number;
@@ -51,19 +64,11 @@ export function StatCard({
   footnote?: string;
   emphasis?: boolean;
   tone?: Tone;
+  // Segundo monto en otra moneda, en su propia línea (nunca se suman).
+  also?: { value: number; currency: Currency };
 }) {
   const style = tones[tone ?? (emphasis ? "balance" : "neutral")];
-  const text = formatCents(value, currency);
-  // "US$" y el signo alargan el monto: se achica en vez de partirse en dos líneas.
-  const width = text.length + (currency === "USD" ? 1 : 0);
-  const size =
-    width > 14
-      ? " text-lg lg:text-xl"
-      : width > 11
-        ? " text-xl lg:text-2xl"
-        : width > 9
-          ? " text-[22px] lg:text-[28px]"
-          : "";
+  const lines = [{ value, currency }, ...(also ? [also] : [])];
   return (
     <Card className={style.panel}>
       <div className="mb-4 flex items-center justify-between gap-2">
@@ -78,16 +83,27 @@ export function StatCard({
           <Icon name={icon} size={16} />
         </span>
       </div>
-      <p
-        className={
-          "metric-value whitespace-nowrap" +
-          size +
-          " " +
-          (value < 0 ? "text-rose-600 dark:text-rose-300" : style.value)
-        }
-      >
-        {text}
-      </p>
+      {lines.map((line) => {
+        const text = formatCents(line.value, line.currency);
+        return (
+          <p
+            key={line.currency}
+            className={
+              "metric-value whitespace-nowrap" +
+              // Con dos montos, ambos un poco más pequeños para que la tarjeta no crezca tanto.
+              (also
+                ? " text-xl lg:text-2xl"
+                : amountSize(text, line.currency)) +
+              " " +
+              (line.value < 0
+                ? "text-rose-600 dark:text-rose-300"
+                : style.value)
+            }
+          >
+            {text}
+          </p>
+        );
+      })}
       {delta !== undefined && (
         <p className="mt-3 text-[11px] text-slate-500 dark:text-slate-400">
           {delta === null

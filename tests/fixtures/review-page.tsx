@@ -31,7 +31,8 @@ import {
 } from "@/lib/dashboard";
 import type { BudgetData, DbRow } from "@/lib/finance-data";
 import type { Category, AccountWithBalance } from "@/lib/types";
-import { CURRENCIES, CURRENCY_LABEL, type Currency } from "@/lib/money";
+import { currencyParam, type Currency } from "@/lib/money";
+import { CurrencyHeading } from "@/components/currency-toggle";
 const id = (n: number) =>
   "00000000-0000-4000-8000-" + String(n).padStart(12, "0");
 const categories: Category[] = [
@@ -293,11 +294,18 @@ async function Content({ searchParams }: { searchParams: Promise<Params> }) {
   const params = await searchParams,
     screen = String(params.screen ?? "resumen");
   if (screen === "movimientos") {
-    const search = String(params.buscar ?? "").trim().toLocaleLowerCase("es");
+    const search = String(params.buscar ?? "")
+      .trim()
+      .toLocaleLowerCase("es");
     const kind = String(params.tipo ?? "");
-    const matching = rows.filter((row) =>
-      (!search || row.category_name.toLocaleLowerCase("es").includes(search)) &&
-      (!kind || (kind === "outflow" ? ["expense", "invest"].includes(row.type) : row.type === kind)),
+    const matching = rows.filter(
+      (row) =>
+        (!search ||
+          row.category_name.toLocaleLowerCase("es").includes(search)) &&
+        (!kind ||
+          (kind === "outflow"
+            ? ["expense", "invest"].includes(row.type)
+            : row.type === kind)),
     );
     return (
       <>
@@ -312,13 +320,14 @@ async function Content({ searchParams }: { searchParams: Promise<Params> }) {
         />
         <MovementSearch params={params} action="/auth/revision" />
         <ul aria-label="Resultados de movimientos">
-          {matching.map((row) => <li key={row.id}>{row.category_name}</li>)}
+          {matching.map((row) => (
+            <li key={row.id}>{row.category_name}</li>
+          ))}
         </ul>
       </>
     );
   }
-  if (screen === "metricas")
-    return <PageHeader title="Métricas de ejemplo" />;
+  if (screen === "metricas") return <PageHeader title="Métricas de ejemplo" />;
   if (screen === "cuentas")
     return (
       <>
@@ -453,6 +462,8 @@ async function Content({ searchParams }: { searchParams: Promise<Params> }) {
   );
   const inCurrency = (list: DashboardRow[], c: Currency) =>
     list.filter((r) => (r.currency ?? "PEN") === c);
+  const currency = currencyParam(params.moneda),
+    stats = summarize(inCurrency(current, currency));
   return (
     <>
       <PageHeader
@@ -467,63 +478,57 @@ async function Content({ searchParams }: { searchParams: Promise<Params> }) {
         categories={categories}
         basePath="/auth/revision"
       />
-      {CURRENCIES.map((c) => {
-        const stats = summarize(inCurrency(current, c));
-        return (
-          <section key={c} className="mb-6">
-            <h2 className="eyebrow mb-2">
-              En {CURRENCY_LABEL[c].toLowerCase()}
-            </h2>
-            <div className="grid grid-cols-2 gap-3 xl:grid-cols-5">
-              <StatCard
-                tone="income"
-                label="Ingresos"
-                value={stats.income}
-                currency={c}
-              />
-              <StatCard
-                tone="expense"
-                label="Gastos"
-                value={stats.expense}
-                currency={c}
-              />
-              <StatCard
-                tone="investment"
-                label="Aportes a inversiones"
-                value={stats.invested}
-                currency={c}
-              />
-              <StatCard
-                tone="expense"
-                label="Egresos totales"
-                value={stats.outflow}
-                currency={c}
-              />
-              <StatCard
-                tone="balance"
-                label="Resultado del período"
-                value={stats.balance}
-                currency={c}
-                emphasis
-              />
-            </div>
-          </section>
-        );
-      })}
-      <div className="space-y-6">
-        {CURRENCIES.map((c) => (
-          <ReportExplorer
-            key={"explorer-" + c + JSON.stringify(params)}
-            rows={inCurrency(analyzed, c)}
-            previous={[]}
-            period={period}
-            params={params}
-            basePath="/auth/revision"
-            currency={c}
-            showCurrency
-          />
-        ))}
+      <CurrencyHeading
+        params={params}
+        current={currency}
+        basePath="/auth/revision"
+      />
+      <div className="mb-6 grid grid-cols-2 gap-3 xl:grid-cols-5">
+        <StatCard
+          tone="income"
+          label="Ingresos"
+          value={stats.income}
+          currency={currency}
+        />
+        <StatCard
+          tone="expense"
+          label="Gastos"
+          value={stats.expense}
+          currency={currency}
+        />
+        <StatCard
+          tone="investment"
+          label="Aportes a inversiones"
+          value={summarize(inCurrency(current, "PEN")).invested}
+          also={{
+            value: summarize(inCurrency(current, "USD")).invested,
+            currency: "USD",
+          }}
+        />
+        <StatCard
+          tone="expense"
+          label="Egresos totales"
+          value={stats.outflow}
+          currency={currency}
+        />
+        <StatCard
+          tone="balance"
+          label="Resultado del período"
+          value={stats.balance}
+          currency={currency}
+          emphasis
+        />
       </div>
+      <ReportExplorer
+        key={"explorer-" + JSON.stringify(params)}
+        rows={inCurrency(analyzed, currency)}
+        previous={[]}
+        period={period}
+        params={params}
+        basePath="/auth/revision"
+        currency={currency}
+        showCurrency
+      />
       <div className="mt-6">
         <BudgetSnapshot
           budget={budget}

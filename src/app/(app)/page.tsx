@@ -23,10 +23,11 @@ import { DashboardFilters } from "./_dashboard/filters";
 import { ReportExplorer } from "./_dashboard/explorer";
 import {
   CURRENCIES,
-  CURRENCY_LABEL,
+  currencyParam,
   formatCents,
   type Currency,
 } from "@/lib/money";
+import { CurrencyHeading } from "@/components/currency-toggle";
 import type { DashboardRow } from "@/lib/dashboard";
 export default function DashboardPage({ searchParams }: PageProps<"/">) {
   return (
@@ -69,7 +70,7 @@ async function Dashboard({ searchParams }: { searchParams: Promise<Params> }) {
   const current = inRange(scoped, period.from, period.plotTo),
     previous = inRange(scoped, period.prevFrom, period.prevTo),
     monthly = summarize(budgetRows.filter((r) => r.occurred_on <= today));
-  // Soles y dólares no se suman: cada moneda con cuentas tiene sus tarjetas y su gráfico.
+  // Soles y dólares no se suman: las tarjetas y el gráfico muestran la moneda elegida.
   const currencies = CURRENCIES.filter(
     (c) => c === "PEN" || catalogs.accounts.some((a) => a.currency === c),
   );
@@ -80,6 +81,14 @@ async function Dashboard({ searchParams }: { searchParams: Promise<Params> }) {
       (r) => !categories.length || categories.includes(r.category_id),
     );
   const multi = currencies.length > 1;
+  const currency = multi ? currencyParam(params.moneda) : "PEN";
+  // Los aportes se ven siempre en ambas monedas: los dólares suelen ir a inversiones.
+  const invested = multi
+    ? {
+        pen: summarize(byCurrency(current, "PEN")).invested,
+        usd: summarize(byCurrency(current, "USD")).invested,
+      }
+    : undefined;
   return (
     <>
       <DashboardFilters
@@ -103,28 +112,24 @@ async function Dashboard({ searchParams }: { searchParams: Promise<Params> }) {
             : "Sin días ejecutados para comparar"}
         </span>
       </div>
-      {currencies.map((c) => (
-        <PeriodCards
-          key={c}
-          currency={c}
-          heading={multi ? "En " + CURRENCY_LABEL[c].toLowerCase() : undefined}
-          now={summarize(byCurrency(current, c))}
-          before={summarize(byCurrency(previous, c))}
-        />
-      ))}
-      <div className="space-y-6">
-        {currencies.map((c) => (
-          <ReportExplorer
-            key={"explorer-" + c + JSON.stringify(params)}
-            rows={inCategories(byCurrency(current, c))}
-            previous={inCategories(byCurrency(previous, c))}
-            period={period}
-            params={params}
-            currency={c}
-            showCurrency={multi}
-          />
-        ))}
-      </div>
+      {multi && (
+        <CurrencyHeading params={params} current={currency} basePath="/" />
+      )}
+      <PeriodCards
+        currency={currency}
+        now={summarize(byCurrency(current, currency))}
+        before={summarize(byCurrency(previous, currency))}
+        invested={invested}
+      />
+      <ReportExplorer
+        key={"explorer-" + JSON.stringify(params)}
+        rows={inCategories(byCurrency(current, currency))}
+        previous={inCategories(byCurrency(previous, currency))}
+        period={period}
+        params={params}
+        currency={currency}
+        showCurrency={multi}
+      />
       <div className="mt-6 grid gap-6 xl:grid-cols-2">
         <BudgetSnapshot
           budget={budget}
@@ -172,18 +177,17 @@ async function Dashboard({ searchParams }: { searchParams: Promise<Params> }) {
 
 function PeriodCards({
   currency,
-  heading,
   now,
   before,
+  invested,
 }: {
   currency: Currency;
-  heading?: string;
   now: ReturnType<typeof summarize>;
   before: ReturnType<typeof summarize>;
+  invested?: { pen: number; usd: number };
 }) {
   return (
     <section className="mb-6">
-      {heading && <h2 className="eyebrow mb-2">{heading}</h2>}
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-5">
         <StatCard
           tone="income"
@@ -201,14 +205,25 @@ function PeriodCards({
           icon="wallet"
           delta={change(now.expense, before.expense)}
         />
-        <StatCard
-          tone="investment"
-          label="Aportes a inversiones"
-          value={now.invested}
-          currency={currency}
-          icon="trend"
-          delta={change(now.invested, before.invested)}
-        />
+        {invested ? (
+          <StatCard
+            tone="investment"
+            label="Aportes a inversiones"
+            value={invested.pen}
+            also={{ value: invested.usd, currency: "USD" }}
+            icon="trend"
+            footnote="En soles y en dólares, por separado"
+          />
+        ) : (
+          <StatCard
+            tone="investment"
+            label="Aportes a inversiones"
+            value={now.invested}
+            currency={currency}
+            icon="trend"
+            delta={change(now.invested, before.invested)}
+          />
+        )}
         <StatCard
           tone="expense"
           label="Egresos totales"

@@ -4,9 +4,11 @@ import { StatCard } from "@/components/stat-card";
 import { requireUser } from "@/lib/auth";
 import { fetchAll, generateDue } from "@/lib/finance-data";
 import type { AccountWithBalance } from "@/lib/types";
-import { CURRENCIES, CURRENCY_LABEL, type Currency } from "@/lib/money";
+import { currencyParam, type Currency } from "@/lib/money";
+import { CurrencyHeading } from "@/components/currency-toggle";
+import type { Params } from "@/lib/dashboard";
 import { AccountsWorkspace } from "./accounts-ui";
-export default function AccountsPage() {
+export default function AccountsPage({ searchParams }: PageProps<"/cuentas">) {
   return (
     <>
       <PageHeader
@@ -14,13 +16,14 @@ export default function AccountsPage() {
         description="Tu dinero disponible, tus tarjetas y el lugar desde el que pagas."
       />
       <Suspense fallback={<LoadingPanel />}>
-        <Accounts />
+        <Accounts searchParams={searchParams} />
       </Suspense>
     </>
   );
 }
-async function Accounts() {
+async function Accounts({ searchParams }: { searchParams: Promise<Params> }) {
   const { supabase, userId } = await requireUser();
+  const params = await searchParams;
   await generateDue(supabase);
   const [rows, balances, profile] = await Promise.all([
     fetchAll((a, b) =>
@@ -54,24 +57,22 @@ async function Accounts() {
     initial_balance_cents: Number(a.initial_balance_cents),
     balance_cents: balanceMap.get(a.id) ?? Number(a.initial_balance_cents),
   }));
-  // Soles y dólares nunca se suman: cada moneda tiene sus propios totales.
-  const currencies = CURRENCIES.filter((c) =>
-    accounts.some((a) => a.currency === c),
-  );
+  // Soles y dólares nunca se suman: los totales muestran la moneda elegida.
+  const multi = accounts.some((a) => a.currency === "USD");
+  const currency = multi ? currencyParam(params.moneda) : "PEN";
   return (
     <>
-      {(currencies.length ? currencies : (["PEN"] as Currency[])).map((c) => (
-        <AccountTotals
-          key={c}
-          currency={c}
-          accounts={accounts.filter((a) => a.currency === c)}
-          heading={
-            currencies.length > 1
-              ? "En " + CURRENCY_LABEL[c].toLowerCase()
-              : undefined
-          }
+      {multi && (
+        <CurrencyHeading
+          params={params}
+          current={currency}
+          basePath="/cuentas"
         />
-      ))}
+      )}
+      <AccountTotals
+        currency={currency}
+        accounts={accounts.filter((a) => a.currency === currency)}
+      />
       <p className="mb-6 text-xs text-slate-400">
         Los totales incluyen todas tus cuentas, también las deshabilitadas con
         saldo. El valor de las inversiones se consulta en su propia pestaña.
@@ -87,11 +88,9 @@ async function Accounts() {
 function AccountTotals({
   accounts,
   currency,
-  heading,
 }: {
   accounts: AccountWithBalance[];
   currency: Currency;
-  heading?: string;
 }) {
   const available = accounts
     .filter((a) => a.type !== "credit")
@@ -104,7 +103,6 @@ function AccountTotals({
     .reduce((s, a) => s + Math.max(0, a.balance_cents), 0);
   return (
     <section className="mb-5">
-      {heading && <h2 className="eyebrow mb-2">{heading}</h2>}
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         <StatCard
           label="Saldo neto en cuentas"

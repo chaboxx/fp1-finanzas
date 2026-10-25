@@ -48,8 +48,7 @@ La moneda sigue guardada en la cuenta.
 5. **Recurrentes:** solo en cuentas en soles.
 6. **Informes:**
    - Cuentas: totales separados por moneda.
-   - Resumen: un bloque de tarjetas y un análisis (gráficos) por cada moneda con cuentas, uno debajo del otro: se ve a la vez lo gastado en soles y en dólares.
-   - Movimientos: la lista muestra cada monto con su símbolo y hay un bloque de totales por moneda.
+   - Resumen, Movimientos y Cuentas: selector **Soles / Dólares** (en la URL, `?moneda=USD`) que cambia la fila de tarjetas y el gráfico. La tarjeta **Aportes a inversiones** muestra siempre ambas monedas, porque los dólares suelen ir a inversiones. La lista de movimientos muestra todos, cada uno con su símbolo.
    - Inversiones: totales separados por moneda.
    - Presupuesto y Métricas: solo soles. Los gastos y aportes en dólares no cuentan en ellos.
 7. La base garantiza las reglas 1, 3, 4 y 5; la UI solo las facilita.
@@ -87,11 +86,11 @@ migración aplicada, porque todo queda en soles por defecto.
 
 | Pantalla | Cambio |
 |---|---|
-| Cuentas | Moneda al crear (bloqueada si hay movimientos); saldo en su moneda; totales por moneda. |
+| Cuentas | Moneda al crear (bloqueada si hay movimientos); saldo en su moneda; selector Soles/Dólares para los totales. |
 | Nuevo/editar movimiento | Selector Soles / Dólares que filtra las cuentas; símbolo del monto según la moneda. |
 | Transferencias | El destino solo lista cuentas de la moneda del origen. |
-| Movimientos | Montos con su símbolo; totales por moneda. |
-| Resumen | Tarjetas y gráficos por moneda, a la vez. Los controles del gráfico (día/semana/mes, métrica) se comparten. |
+| Movimientos | Montos con su símbolo; selector Soles/Dólares para los totales; Aportes en ambas monedas. |
+| Resumen | Selector Soles/Dólares para la fila de tarjetas y el gráfico; Aportes siempre en ambas monedas. |
 | Inversiones | Moneda al crear la posición; montos con su símbolo; totales por moneda. |
 | Recurrentes | Solo ofrece cuentas en soles. |
 | Presupuesto, Métricas | Sin cambios visibles; siguen en soles. |
