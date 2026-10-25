@@ -65,6 +65,8 @@ backend aparte: Next.js es el backend, y Postgres hace cumplir las reglas.
 
 ### Selección temporal y filtros
 
+- Los seleccionables de cuentas y categorías se cierran al tocar o pulsar fuera del campo y su panel, al mover el foco fuera o al presionar Escape. Marcar varias opciones dentro mantiene el panel abierto; Escape devuelve el foco al campo.
+- Buscar movimientos usa Form de Next.js para actualizar la URL y los resultados sin recargar el documento. Conserva las fechas y las selecciones de cuentas/categorías, permite enviar con Enter y mantiene el historial del navegador.
 - Los accesos rápidos se conservan al cambiar solo cuentas o categorías. Editar Desde/Hasta los sustituye por un rango explícito.
 - Limpiar filtros aparece como enlace solo cuando hay cuentas, categorías, tipo o búsqueda aplicados. El enlace conserva las fechas, el acceso rápido y los controles del gráfico.
 - El gráfico usa los eventos de ratón de Recharts y ReferenceArea para marcar un tramo. Al soltar, los intervalos seleccionados se convierten en fechas inclusivas, se actualiza la URL y se consultan de nuevo tarjetas y gráficos. Funciona también de derecha a izquierda.

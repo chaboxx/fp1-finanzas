@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/icons";
 import { DateInput } from "@/components/date-input";
@@ -236,8 +236,36 @@ function MultiSelect({
   selected: string[];
 }) {
   const [checked, setChecked] = useState(selected);
+  const detailsRef = useRef<HTMLDetailsElement>(null);
+
+  useEffect(() => {
+    const details = detailsRef.current;
+    if (!details) return;
+    const closeOutside = (event: Event) => {
+      if (event.target instanceof Node && !details.contains(event.target))
+        details.open = false;
+    };
+    // pointerdown cubre ratón y pantalla táctil sin impedir el clic de destino.
+    document.addEventListener("pointerdown", closeOutside, true);
+    document.addEventListener("focusin", closeOutside);
+    return () => {
+      document.removeEventListener("pointerdown", closeOutside, true);
+      document.removeEventListener("focusin", closeOutside);
+    };
+  }, []);
+
   return (
-    <details className="group/filter relative min-w-40">
+    <details
+      ref={detailsRef}
+      className="group/filter relative min-w-40 max-sm:w-full"
+      onKeyDown={(event) => {
+        if (event.key === "Escape" && event.currentTarget.open) {
+          event.preventDefault();
+          event.currentTarget.open = false;
+          event.currentTarget.querySelector("summary")?.focus();
+        }
+      }}
+    >
       <summary className="field flex list-none items-center justify-between gap-3 text-slate-600 [&::-webkit-details-marker]:hidden dark:text-slate-300">
         {label}: {checked.length || "todas"}
         <Icon
@@ -246,7 +274,7 @@ function MultiSelect({
           className="shrink-0 text-slate-400 transition-transform group-open/filter:rotate-180"
         />
       </summary>
-      <div className="absolute top-full right-0 z-20 mt-2 max-h-80 w-64 overflow-auto rounded-xl border border-blue-100 bg-white p-2 shadow-xl dark:border-slate-700 dark:bg-slate-900">
+      <div className="absolute top-full right-0 z-20 mt-2 max-h-80 w-full overflow-auto rounded-xl border border-blue-100 bg-white p-2 shadow-xl sm:w-64 dark:border-slate-700 dark:bg-slate-900">
         <label className="mb-1 flex min-h-11 cursor-pointer items-center gap-2 rounded-lg bg-blue-50 px-3 text-sm font-semibold text-blue-700 dark:bg-blue-950 dark:text-blue-300">
           <input
             type="checkbox"

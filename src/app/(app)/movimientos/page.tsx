@@ -11,13 +11,7 @@ import { todayISO, formatDayHeading } from "@/lib/dates";
 import { CURRENCIES, CURRENCY_LABEL, formatCents } from "@/lib/money";
 import { DashboardFilters } from "../_dashboard/filters";
 import { DeleteMovementButton } from "./delete-movement-button";
-const labels = {
-  expense: "Gasto",
-  income: "Ingreso",
-  transfer: "Transferencia",
-  invest: "Aporte a inversión",
-  divest: "Rescate",
-};
+import { MovementSearch, movementTypeLabels as labels } from "./movement-search";
 export default function MovementsPage({
   searchParams,
 }: PageProps<"/movimientos">) {
@@ -162,40 +156,7 @@ async function Movements({ searchParams }: { searchParams: Promise<Params> }) {
           </div>
         </section>
       ))}
-      <form
-        action="/movimientos"
-        className="panel mb-6 flex flex-wrap items-end gap-3"
-      >
-        {Object.entries(params)
-          .filter(([k]) => !["tipo", "buscar"].includes(k))
-          .flatMap(([k, val]) =>
-            (Array.isArray(val) ? val : [val]).map((v, i) =>
-              v ? <input key={k + i} type="hidden" name={k} value={v} /> : null,
-            ),
-          )}
-        <label className="min-w-48 flex-1 text-xs font-medium text-slate-500">
-          Buscar
-          <input
-            className="field mt-1.5"
-            name="buscar"
-            defaultValue={String(params.buscar ?? "")}
-            placeholder="Descripción, categoría o inversión"
-          />
-        </label>
-        <label className="text-xs font-medium text-slate-500">
-          Tipo
-          <select name="tipo" className="field mt-1.5" defaultValue={kind}>
-            <option value="">Todos</option>
-            {Object.entries(labels).map(([v, l]) => (
-              <option key={v} value={v}>
-                {l}
-              </option>
-            ))}
-            <option value="outflow">Gastos + aportes</option>
-          </select>
-        </label>
-        <button className="btn btn-primary">Buscar</button>
-      </form>
+      <MovementSearch key={JSON.stringify(params)} params={params} />
       {!rows.length ? (
         <Card className="py-12 text-center">
           <h2 className="font-semibold">Sin movimientos con estos filtros</h2>

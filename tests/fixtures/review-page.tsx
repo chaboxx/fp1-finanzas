@@ -1,6 +1,7 @@
 import { FormModal } from "@/components/form-modal";
 import { BudgetBreakdown } from "@/components/budget-breakdown";
 import { MovementForm } from "@/app/(app)/movimientos/movement-form";
+import { MovementSearch } from "@/app/(app)/movimientos/movement-search";
 import { ProfileForm } from "@/app/(app)/perfil/profile-form";
 import { CategoriesManager } from "@/app/(app)/categorias/categories-ui";
 // Se copia a una ruta pública temporal solo durante npm run test:ui y se elimina al salir.
@@ -289,6 +290,23 @@ async function Content({ searchParams }: { searchParams: Promise<Params> }) {
   await connection();
   const params = await searchParams,
     screen = String(params.screen ?? "resumen");
+  if (screen === "movimientos") {
+    const search = String(params.buscar ?? "").trim().toLocaleLowerCase("es");
+    const kind = String(params.tipo ?? "");
+    const matching = rows.filter((row) =>
+      (!search || row.category_name.toLocaleLowerCase("es").includes(search)) &&
+      (!kind || (kind === "outflow" ? ["expense", "invest"].includes(row.type) : row.type === kind)),
+    );
+    return (
+      <>
+        <PageHeader title="Movimientos de ejemplo" />
+        <MovementSearch key={JSON.stringify(params)} params={params} action="/auth/revision" />
+        <ul aria-label="Resultados de movimientos">
+          {matching.map((row) => <li key={row.id}>{row.category_name}</li>)}
+        </ul>
+      </>
+    );
+  }
   if (screen === "cuentas")
     return (
       <>
